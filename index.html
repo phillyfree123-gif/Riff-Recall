@@ -397,9 +397,10 @@ input{font-family:'DM Sans',sans-serif;}
     <div class="winner-pts" id="winner-pts">0</div>
     <div class="results-grid" id="results-grid"></div>
     <div id="recall-section" style="width:100%;max-width:500px;display:none;">
-      <div style="font-family:Bebas Neue,sans-serif;font-size:22px;color:var(--gold);margin-bottom:8px;letter-spacing:2px;">🎤 READY RECALL QUEUE</div>
-      <div id="recall-queue-display" style="font-size:14px;color:var(--muted);margin-bottom:8px;">No songs queued yet...</div>
-      <div id="recall-now-playing" style="font-size:15px;color:var(--green);min-height:22px;margin-bottom:8px;"></div>
+      <div style="font-family:Bebas Neue,sans-serif;font-size:22px;color:var(--gold);margin-bottom:4px;letter-spacing:2px;">🎤 READY RECALL QUEUE</div>
+      <div id="recall-countdown" style="font-size:14px;color:var(--gold);margin-bottom:6px;"></div>
+      <div id="recall-queue-display" style="font-size:14px;color:var(--muted);margin-bottom:8px;">Waiting for players to choose songs...</div>
+      <div id="recall-now-playing" style="font-size:16px;color:var(--green);font-weight:600;min-height:22px;margin-bottom:8px;"></div>
     </div>
     <button class="btn-ghost" style="margin-top:1rem;font-size:17px;" onclick="location.reload()">Play Again 🎵</button>
   </div>
@@ -469,11 +470,20 @@ input{font-family:'DM Sans',sans-serif;}
   </div>
 
   <!-- RECALL SCREEN -->
-  <div id="precall" class="hidden">
-    <div style="font-family:'Bebas Neue',sans-serif;font-size:52px;color:var(--gold);letter-spacing:2px;line-height:1.1;text-align:center;margin-bottom:.5rem;">Ready Recall<br><span style="color:#fff;">& Sing Along!?</span></div>
-    <div style="font-size:14px;color:var(--muted);text-align:center;margin-bottom:1.5rem;">Tap a song to add it to the TV queue!</div>
-    <div id="precall-list" style="width:100%;display:flex;flex-direction:column;gap:10px;"></div>
-    <div id="precall-queued" style="font-size:13px;color:var(--green);text-align:center;margin-top:1rem;min-height:20px;"></div>
+  <div id="precall" class="hidden" style="overflow-y:auto;">
+    <div style="font-family:'Bebas Neue',sans-serif;font-size:48px;color:var(--gold);letter-spacing:2px;line-height:1.1;text-align:center;margin-bottom:.25rem;">Ready Recall<br><span style="color:#fff;">& Sing Along!?</span></div>
+    <div style="font-size:14px;color:var(--muted);text-align:center;margin-bottom:.75rem;">Tap songs to add to queue. Tap again to remove.</div>
+    <div style="text-align:center;margin-bottom:.75rem;">
+      <span style="font-size:13px;color:var(--muted);">Time to choose: </span>
+      <span style="font-family:'Bebas Neue',sans-serif;font-size:22px;color:var(--gold);" id="p-recall-timer">20</span>
+      <span style="font-size:13px;color:var(--muted);">s</span>
+    </div>
+    <div id="precall-list" style="width:100%;display:flex;flex-direction:column;gap:10px;margin-bottom:1rem;"></div>
+    <div style="display:flex;flex-direction:column;gap:10px;">
+      <button onclick="submitRecall()" style="background:var(--gold);color:#111;border:none;border-radius:10px;padding:16px;font-size:17px;font-weight:700;width:100%;">Submit My Songs ✓</button>
+      <button onclick="submitRecallEmpty()" style="background:var(--surf2);color:var(--muted);border:1px solid var(--border);border-radius:10px;padding:14px;font-size:14px;width:100%;">😴 I'm boring, I don't want to add any songs</button>
+    </div>
+    <div id="precall-status" style="font-size:13px;color:var(--green);text-align:center;margin-top:.75rem;min-height:18px;"></div>
   </div>
 </div>
 
@@ -535,7 +545,7 @@ function playBgMusic(style) {
   bgGain = ctx.createGain();
   // Add reverb-like feel with a slight delay
   bgGain.gain.setValueAtTime(0.0, ctx.currentTime);
-  bgGain.gain.linearRampToValueAtTime(style === 'suspense' ? 0.22 : 0.28, ctx.currentTime + 0.5);
+  bgGain.gain.linearRampToValueAtTime(style === 'suspense' ? 0.10 : 0.13, ctx.currentTime + 0.5);
   bgGain.connect(ctx.destination);
   bgRunning = true;
 
@@ -694,18 +704,18 @@ function playCrescendo() {
   if (ctx.state === 'suspended') ctx.resume();
   var mg = ctx.createGain();
   mg.gain.setValueAtTime(0.0, ctx.currentTime);
-  mg.gain.linearRampToValueAtTime(0.4, ctx.currentTime + 2.5);
-  mg.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 3.5);
+  mg.gain.linearRampToValueAtTime(0.5, ctx.currentTime + 1.2);
+  mg.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 2.2);
   mg.connect(ctx.destination);
-  // Rising chromatic rush + timpani-like hit
   var t = ctx.currentTime;
+  // Fast rising chromatic rush — shorter intervals
   var rising = [110,123,138,155,174,196,220,247,277,311,349,392,440,494,554,587,659,740,830,880,988,1047,1175,1319,1480];
   rising.forEach(function(f, i) {
-    note(ctx, mg, f, t + i*0.08, 0.15, 'sawtooth', 0.18);
+    note(ctx, mg, f, t + i*0.04, 0.09, 'sawtooth', 0.22);
   });
-  // Big impact chord at end
+  // Big impact chord
   [131,165,196,247,294,330,392,494].forEach(function(f) {
-    note(ctx, mg, f, t + 2.0, 1.2, 'sine', 0.25);
+    note(ctx, mg, f, t + 1.0, 1.0, 'sine', 0.28);
   });
 }
 
@@ -1141,10 +1151,13 @@ function revealHost() {
   }
 
   // Show song name — always. R3 shows song + artist
-  $('song-reveal').innerHTML = 'Song: <strong>' + q.song + '</strong>' + (revType === 'r3' ? ' &middot; Artist: <strong>' + q.answers[q.correct] + '</strong>' : '');
+  var revealHTML = '<strong style="font-size:20px;">' + q.song + '</strong>';
+  if (revType === 'r3') revealHTML += ' &middot; <span style="color:var(--gold);">Artist: <strong>' + q.answers[q.correct] + '</strong></span>';
+  $('song-reveal').innerHTML = revealHTML;
   show('song-reveal');
 
   renderScoreCards();
+  showScoringAnnouncement();
   pub('reveal', { correct: q.correct, song: q.song || '', answerOrder: hAnswerOrder, scores: scoreP(), type: revType, sc: revType === 'r1' ? q.sc : '' });
   // Track R1 songs for recall
   if (revType === 'r1' && q.sc) {
@@ -1218,6 +1231,8 @@ function hostContinue() {
 
 function hostEnd() {
   pub('game-end', { scores: scoreP(), r1Songs: hPlayedR1 });
+  // Start recall countdown after a short delay
+  setTimeout(startRecallCountdown, 2000);
   hide('hgame'); show('hend');
   playBgMusic('results');
   var sorted = Object.values(hPlayers).sort(function(a, b) { return b.score - a.score; });
@@ -1246,12 +1261,95 @@ function hostEnd() {
   });
 }
 
+function showScoringAnnouncement() {
+  // Remove any existing announcement
+  var existing = document.getElementById('score-announce');
+  if (existing) existing.remove();
+  var correctPlayers = hAnswerOrder.map(function(id) { return hPlayers[id]; }).filter(Boolean);
+  if (!correctPlayers.length) return;
+  var pts = [5, 3, 2];
+  var ordinals = ['1st', '2nd', '3rd'];
+  var container = document.createElement('div');
+  container.id = 'score-announce';
+  container.style.cssText = 'position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);z-index:9999;display:flex;flex-direction:column;gap:12px;align-items:center;pointer-events:none;';
+  correctPlayers.slice(0, 3).forEach(function(p, i) {
+    var pill = document.createElement('div');
+    var ptVal = pts[i] || 1;
+    var colors = ['var(--gold)', '#ddd', '#cd7f32'];
+    pill.style.cssText = 'background:' + (colors[i]||'var(--green)') + ';color:#111;font-family:Bebas Neue,sans-serif;font-size:28px;letter-spacing:2px;padding:12px 32px;border-radius:99px;opacity:0;transform:scale(0.5);transition:opacity 0.3s,transform 0.3s;white-space:nowrap;';
+    pill.textContent = ordinals[i] + '! ' + p.name + ' +' + ptVal + ' pts';
+    container.appendChild(pill);
+    setTimeout(function() {
+      pill.style.opacity = '1';
+      pill.style.transform = 'scale(1)';
+    }, i * 600 + 100);
+  });
+  document.body.appendChild(container);
+  setTimeout(function() {
+    container.style.transition = 'opacity 0.5s';
+    container.style.opacity = '0';
+    setTimeout(function() { container.remove(); }, 500);
+  }, 3500);
+}
+
+var hRecallSubmitted = {}; // playerID -> true
+var hRecallTimer = null;
+var hRecallCountdown = 20;
+var hRecallCountdownID = null;
+
+function handleRecallSubmit(playerId, songs) {
+  hRecallSubmitted[playerId] = true;
+  // Add songs to queue (avoid duplicates)
+  songs.forEach(function(s) {
+    if (s.sc && s.song) {
+      var already = hRecallQueue.some(function(q){return q.sc === s.sc;});
+      if (!already) hRecallQueue.push({sc: s.sc, song: s.song});
+    }
+  });
+  updateRecallDisplay();
+  // Check if all players submitted
+  var allSubmitted = Object.keys(hPlayers).every(function(id) { return hRecallSubmitted[id]; });
+  if (allSubmitted) {
+    clearInterval(hRecallCountdownID);
+    startRecallPlayback();
+  }
+}
+
+function startRecallCountdown() {
+  hRecallCountdown = 20;
+  hRecallSubmitted = {};
+  updateHostRecallTimer(20);
+  hRecallCountdownID = setInterval(function() {
+    hRecallCountdown--;
+    updateHostRecallTimer(hRecallCountdown);
+    if (hRecallCountdown <= 0) {
+      clearInterval(hRecallCountdownID);
+      startRecallPlayback();
+    }
+  }, 1000);
+}
+
+function updateHostRecallTimer(secs) {
+  var el = $('recall-countdown');
+  if (el) el.textContent = 'Starting in ' + secs + 's...';
+}
+
+function startRecallPlayback() {
+  clearInterval(hRecallCountdownID);
+  var el = $('recall-countdown');
+  if (el) el.textContent = '';
+  if (!hRecallQueue.length) {
+    pub('recall-done', {});
+    return;
+  }
+  playNextRecall();
+}
+
 function addToRecallQueue(sc, song) {
   var already = hRecallQueue.some(function(s){return s.sc === sc;});
   if (already) return;
   hRecallQueue.push({sc: sc, song: song});
   updateRecallDisplay();
-  if (!hRecallPlaying) playNextRecall();
 }
 
 function updateRecallDisplay() {
@@ -1375,9 +1473,9 @@ function playerJoin() {
         show('r1-content');
       }
     });
-    sub('recall-queue', function(d) {
-      // Player added a song to the recall queue
-      if (d.sc && d.song) addToRecallQueue(d.sc, d.song);
+    sub('recall-submit', function(d) {
+      // Player submitted their song choices
+      handleRecallSubmit(d.id, d.songs || []);
     });
     hide('pjoin'); show('pwaiting');
     $('wait-name').textContent = pName.toUpperCase();
@@ -1450,28 +1548,64 @@ function requestSingalong() {
   pub('singalong-request', { sc: pCurrentSC, id: pID });
 }
 
+var pRecallSelected = {}; // sc -> true/false
+var pRecallSubmitted = false;
+var pRecallTimerID = null;
+var pRecallSongs = [];
+
 function showRecallScreen(songs) {
   if (!songs || !songs.length) return;
+  pRecallSongs = songs;
+  pRecallSelected = {};
+  pRecallSubmitted = false;
   hide('pend'); show('precall');
   playBgMusic('singalong');
-  var list = $('precall-list');
-  var queued = {};
+  renderRecallList();
+  // Start 20-second countdown
+  var secs = 20;
+  $('p-recall-timer').textContent = secs;
+  pRecallTimerID = setInterval(function() {
+    secs--;
+    var el = $('p-recall-timer');
+    if (el) el.textContent = secs;
+    if (secs <= 0) {
+      clearInterval(pRecallTimerID);
+      if (!pRecallSubmitted) submitRecall();
+    }
+  }, 1000);
+}
+
+function renderRecallList() {
+  var list = $('precall-list'); if (!list) return;
   list.innerHTML = '';
-  songs.forEach(function(s) {
+  pRecallSongs.forEach(function(s) {
+    var selected = pRecallSelected[s.sc];
     var btn = document.createElement('button');
-    btn.style.cssText = 'background:var(--surf);border:2px solid var(--border);border-radius:12px;padding:16px 18px;font-size:16px;font-weight:600;color:var(--text);width:100%;text-align:left;display:flex;align-items:center;gap:12px;cursor:pointer;-webkit-tap-highlight-color:transparent;';
-    btn.innerHTML = '<span style="font-size:24px;">🎵</span><span>' + s.song + '</span>';
+    btn.style.cssText = 'background:' + (selected ? 'rgba(46,204,113,.12)' : 'var(--surf)') + ';border:2px solid ' + (selected ? 'var(--green)' : 'var(--border)') + ';border-radius:12px;padding:16px 18px;font-size:16px;font-weight:600;color:' + (selected ? 'var(--green)' : 'var(--text)') + ';width:100%;text-align:left;display:flex;align-items:center;gap:12px;cursor:pointer;-webkit-tap-highlight-color:transparent;';
+    btn.innerHTML = '<span style="font-size:24px;">' + (selected ? '✅' : '🎵') + '</span><span>' + s.song + '</span>';
     btn.onclick = function() {
-      if (queued[s.sc]) return;
-      queued[s.sc] = true;
-      btn.style.borderColor = 'var(--green)';
-      btn.style.color = 'var(--green)';
-      btn.innerHTML = '<span style="font-size:24px;">✅</span><span>' + s.song + '</span>';
-      pub('recall-queue', { sc: s.sc, song: s.song, id: pID });
-      $('precall-queued').textContent = 'Added to queue! Watch the TV 🎵';
+      if (pRecallSubmitted) return;
+      pRecallSelected[s.sc] = !pRecallSelected[s.sc];
+      renderRecallList();
     };
     list.appendChild(btn);
   });
+}
+
+function submitRecall() {
+  if (pRecallSubmitted) return;
+  pRecallSubmitted = true;
+  clearInterval(pRecallTimerID);
+  // Send selected songs to host
+  var selected = pRecallSongs.filter(function(s) { return pRecallSelected[s.sc]; });
+  pub('recall-submit', { id: pID, songs: selected });
+  var status = $('precall-status');
+  if (status) status.textContent = selected.length ? 'Submitted ' + selected.length + ' song' + (selected.length !== 1 ? 's' : '') + '! Watch the TV 🎵' : 'Submitted! Watching...';
+}
+
+function submitRecallEmpty() {
+  pRecallSelected = {};
+  submitRecall();
 }
 
 function playerEnd(scores) {
