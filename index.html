@@ -396,6 +396,11 @@ input{font-family:'DM Sans',sans-serif;}
     <div class="winner-name" id="winner-name">—</div>
     <div class="winner-pts" id="winner-pts">0</div>
     <div class="results-grid" id="results-grid"></div>
+    <div id="recall-section" style="width:100%;max-width:500px;display:none;">
+      <div style="font-family:Bebas Neue,sans-serif;font-size:22px;color:var(--gold);margin-bottom:8px;letter-spacing:2px;">🎤 READY RECALL QUEUE</div>
+      <div id="recall-queue-display" style="font-size:14px;color:var(--muted);margin-bottom:8px;">No songs queued yet...</div>
+      <div id="recall-now-playing" style="font-size:15px;color:var(--green);min-height:22px;margin-bottom:8px;"></div>
+    </div>
     <button class="btn-ghost" style="margin-top:1rem;font-size:17px;" onclick="location.reload()">Play Again 🎵</button>
   </div>
 </div>
@@ -462,6 +467,14 @@ input{font-family:'DM Sans',sans-serif;}
     <div class="p-final-lbl">Final Score</div>
     <div style="font-size:14px;color:var(--muted);margin-top:.5rem;">Check the TV for the leaderboard!</div>
   </div>
+
+  <!-- RECALL SCREEN -->
+  <div id="precall" class="hidden">
+    <div style="font-family:'Bebas Neue',sans-serif;font-size:52px;color:var(--gold);letter-spacing:2px;line-height:1.1;text-align:center;margin-bottom:.5rem;">Ready Recall<br><span style="color:#fff;">& Sing Along!?</span></div>
+    <div style="font-size:14px;color:var(--muted);text-align:center;margin-bottom:1.5rem;">Tap a song to add it to the TV queue!</div>
+    <div id="precall-list" style="width:100%;display:flex;flex-direction:column;gap:10px;"></div>
+    <div id="precall-queued" style="font-size:13px;color:var(--green);text-align:center;margin-top:1rem;min-height:20px;"></div>
+  </div>
 </div>
 
 <div id="sbar" class="hidden">
@@ -476,56 +489,224 @@ var ABLY_KEY = 'Ug5YfA.d_CijQ:fH7cgOykNFEkY_4ZNfQNgcJ7F7tSjYiW15J43NfLVTM';
 var COLORS = ['#F5C842','#4CAF50','#E8334A','#5B9CF6','#C97BE8','#FF8C42','#5DCAA5','#ED93B1'];
 var LTRS = ['A','B','C','D'];
 
-/* ══ AUDIO ENGINE (Web Audio API — royalty free, no downloads) ══ */
+/* ══════════════════════════════════════════
+   AUDIO ENGINE — Rich Web Audio music
+   Styles: lobby | intro | suspense | results | singalong
+══════════════════════════════════════════ */
 var audioCtx = null;
-var bgNode = null, bgGain = null;
+var bgScheduled = [], bgGain = null, bgRunning = false;
 
 function getCtx() {
   if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
   return audioCtx;
 }
 
-// Generate a jaunty upbeat tune using Web Audio oscillators
+function stopBgMusic() {
+  bgRunning = false;
+  bgScheduled.forEach(function(n) { try { n.stop(); } catch(e) {} });
+  bgScheduled = [];
+  if (bgGain) { try { bgGain.disconnect(); } catch(e) {} bgGain = null; }
+}
+
+// Play a note: freq, start, dur, type, gainVal, ctx, masterGain
+function note(ctx, mg, freq, start, dur, type, vol) {
+  if (!bgRunning) return;
+  var osc = ctx.createOscillator();
+  var g   = ctx.createGain();
+  osc.type = type || 'sine';
+  osc.frequency.setValueAtTime(freq, start);
+  g.gain.setValueAtTime(0, start);
+  g.gain.linearRampToValueAtTime(vol || 0.3, start + 0.015);
+  g.gain.exponentialRampToValueAtTime(0.001, start + dur * 0.85);
+  osc.connect(g); g.connect(mg);
+  osc.start(start); osc.stop(start + dur);
+  bgScheduled.push(osc);
+}
+
+// Chord: play multiple freqs at once
+function chord(ctx, mg, freqs, start, dur, type, vol) {
+  freqs.forEach(function(f) { note(ctx, mg, f, start, dur, type, (vol||0.2)/freqs.length); });
+}
+
 function playBgMusic(style) {
   stopBgMusic();
   var ctx = getCtx();
   if (ctx.state === 'suspended') ctx.resume();
   bgGain = ctx.createGain();
-  bgGain.gain.setValueAtTime(0.18, ctx.currentTime);
+  // Add reverb-like feel with a slight delay
+  bgGain.gain.setValueAtTime(0.0, ctx.currentTime);
+  bgGain.gain.linearRampToValueAtTime(style === 'suspense' ? 0.22 : 0.28, ctx.currentTime + 0.5);
   bgGain.connect(ctx.destination);
+  bgRunning = true;
 
-  var notes = style === 'lobby'
-    // Upbeat waiting music — bouncy major scale pattern
-    ? [523,659,784,1047,784,659,523,392,440,523,659,784,659,523,440,392]
-    // Jaunty intro/results music — triumphant
-    : [523,659,784,880,1047,880,784,659,523,659,784,659,523,440,523,659];
-
-  var bpm = 140, beat = 60 / bpm;
-  var t = ctx.currentTime;
-
-  function scheduleLoop() {
-    notes.forEach(function(freq, i) {
-      var osc = ctx.createOscillator();
-      var g = ctx.createGain();
-      osc.type = 'square';
-      osc.frequency.setValueAtTime(freq, t + i * beat * 0.5);
-      g.gain.setValueAtTime(0, t + i * beat * 0.5);
-      g.gain.linearRampToValueAtTime(1, t + i * beat * 0.5 + 0.02);
-      g.gain.linearRampToValueAtTime(0, t + i * beat * 0.5 + beat * 0.4);
-      osc.connect(g); g.connect(bgGain);
-      osc.start(t + i * beat * 0.5);
-      osc.stop(t + i * beat * 0.5 + beat * 0.45);
-    });
-    t += notes.length * beat * 0.5;
-    if (bgNode !== null) bgNode = setTimeout(scheduleLoop, (notes.length * beat * 0.5 - 0.5) * 1000);
-  }
-  bgNode = setTimeout(function(){}, 0);
-  scheduleLoop();
+  if (style === 'lobby') scheduleLobby(ctx, bgGain);
+  else if (style === 'intro') scheduleIntro(ctx, bgGain);
+  else if (style === 'suspense') scheduleSuspense(ctx, bgGain);
+  else if (style === 'results') scheduleResults(ctx, bgGain);
+  else if (style === 'singalong') scheduleSingalong(ctx, bgGain);
 }
 
-function stopBgMusic() {
-  if (bgNode !== null) { clearTimeout(bgNode); bgNode = null; }
-  if (bgGain) { try { bgGain.gain.setValueAtTime(0, getCtx().currentTime); } catch(e) {} bgGain = null; }
+/* ── LOBBY: Funky groovy waiting music ── */
+function scheduleLobby(ctx, mg) {
+  var bpm = 112, b = 60/bpm;
+  // Bass line in C major pentatonic
+  var bass = [65,65,73,65,  65,82,73,65,  65,65,73,87,  82,73,65,55];
+  // Chords: C maj, F maj, G maj, Am
+  var chords = [[131,165,196],[175,220,262],[196,247,294],[110,131,165]];
+  var chordDur = b * 8;
+  var t = ctx.currentTime + 0.1;
+
+  function loop() {
+    if (!bgRunning) return;
+    // Bass line
+    bass.forEach(function(f, i) { note(ctx, mg, f, t + i*b, b*0.7, 'triangle', 0.35); });
+    // Chords every 2 bars
+    chords.forEach(function(c, i) { chord(ctx, mg, c, t + i*chordDur, chordDur*0.85, 'sine', 0.22); });
+    // Hi melodic arp
+    var mel = [523,659,784,659,523,440,523,587,659,784,880,784,659,587,523,440];
+    mel.forEach(function(f, i) { note(ctx, mg, f, t + i*b*0.5, b*0.4, 'triangle', 0.12); });
+    var loopLen = bass.length * b;
+    t += loopLen;
+    if (bgRunning) bgScheduled.push({stop: function(){}});
+    setTimeout(function() { if (bgRunning) loop(); }, (loopLen - 0.3) * 1000);
+  }
+  loop();
+}
+
+/* ── INTRO: Upbeat triumphant fanfare ── */
+function scheduleIntro(ctx, mg) {
+  var bpm = 128, b = 60/bpm;
+  // Classic I-IV-V-I in C
+  var mel = [523,523,659,523,784,698,523,  523,523,659,523,880,784,0,
+             523,523,1047,880,784,698,659,  698,698,784,698,880,784,0];
+  var t = ctx.currentTime + 0.1;
+  function loop() {
+    if (!bgRunning) return;
+    // Melody
+    mel.forEach(function(f, i) {
+      if (f > 0) note(ctx, mg, f, t + i*b*0.5, b*0.42, 'square', 0.15);
+    });
+    // Bass walk
+    var bassNotes = [131,165,196,175,131,165,196,220,131,196,262,196,175,131,110,131];
+    bassNotes.forEach(function(f, i) { note(ctx, mg, f, t + i*b, b*0.8, 'triangle', 0.28); });
+    // Rhythm chords
+    [[262,330,392],[349,440,523],[392,494,587],[262,330,392]].forEach(function(c, i) {
+      chord(ctx, mg, c, t + i*b*4, b*3.5, 'sine', 0.18);
+    });
+    var loopLen = bassNotes.length * b;
+    t += loopLen;
+    setTimeout(function() { if (bgRunning) loop(); }, (loopLen - 0.3) * 1000);
+  }
+  loop();
+}
+
+/* ── SUSPENSE: Cinematic tension music for R2 & R3 ── */
+function scheduleSuspense(ctx, mg) {
+  var bpm = 70, b = 60/bpm;
+  // Ominous minor chord pulses + rising string-like sweeps
+  var minorChords = [
+    [110,131,165],  // Am
+    [98,123,147],   // Gm
+    [116,138,174],  // Bbm
+    [110,138,164],  // Am7
+  ];
+  var t = ctx.currentTime + 0.1;
+
+  function loop() {
+    if (!bgRunning) return;
+    // Pulsing minor chords
+    minorChords.forEach(function(c, i) {
+      for (var pulse = 0; pulse < 4; pulse++) {
+        var pt = t + i*b*4 + pulse*b;
+        chord(ctx, mg, c, pt, b*0.4, 'sine', 0.25);
+        // Low rumble
+        note(ctx, mg, c[0]*0.5, pt, b*0.9, 'triangle', 0.18);
+      }
+    });
+    // Rising sweep melody (tension-building)
+    var sweep = [220,233,247,262,277,294,311,330,349,370,392,415,440,466,494,523];
+    sweep.forEach(function(f, i) {
+      note(ctx, mg, f, t + i*b*0.5, b*0.6, 'sine', 0.08);
+    });
+    // Heartbeat-like bass
+    [0,0.35,2,2.35,4,4.35,6,6.35,8,8.35,10,10.35,12,12.35,14,14.35].forEach(function(offset) {
+      note(ctx, mg, 55, t + offset*b*0.5, b*0.25, 'triangle', 0.3);
+    });
+    var loopLen = minorChords.length * 4 * b;
+    t += loopLen;
+    setTimeout(function() { if (bgRunning) loop(); }, (loopLen - 0.3) * 1000);
+  }
+  loop();
+}
+
+/* ── RESULTS: Victory fanfare ── */
+function scheduleResults(ctx, mg) {
+  var bpm = 138, b = 60/bpm;
+  // Big triumphant major fanfare
+  var mel = [523,659,784,1047,784,1047,784,659,
+             523,659,784,880,1047,880,784,659,
+             784,880,1047,1175,1047,880,784,659,
+             523,523,659,784,784,659,523,392];
+  var t = ctx.currentTime + 0.1;
+  function loop() {
+    if (!bgRunning) return;
+    mel.forEach(function(f, i) { note(ctx, mg, f, t + i*b*0.5, b*0.42, 'square', 0.18); });
+    var bassLine = [131,131,165,196,196,165,131,110,131,131,165,196,175,165,131,98];
+    bassLine.forEach(function(f, i) { note(ctx, mg, f, t + i*b, b*0.8, 'triangle', 0.32); });
+    var bigChords = [[262,330,392,523],[349,440,523,659],[392,494,587,784],[262,330,392,523]];
+    bigChords.forEach(function(c, i) {
+      chord(ctx, mg, c, t + i*b*4, b*3.6, 'sine', 0.22);
+      chord(ctx, mg, c.map(function(f){return f*2;}), t + i*b*4 + b*2, b*1.6, 'sine', 0.12);
+    });
+    var loopLen = bassLine.length * b;
+    t += loopLen;
+    setTimeout(function() { if (bgRunning) loop(); }, (loopLen - 0.3) * 1000);
+  }
+  loop();
+}
+
+/* ── SINGALONG: Upbeat party music ── */
+function scheduleSingalong(ctx, mg) {
+  var bpm = 120, b = 60/bpm;
+  var mel = [784,784,880,784,1047,880,784,659,
+             784,784,880,784,1047,880,784,659,
+             659,659,784,659,880,784,659,587,
+             587,659,784,659,523,587,659,784];
+  var t = ctx.currentTime + 0.1;
+  function loop() {
+    if (!bgRunning) return;
+    mel.forEach(function(f, i) { note(ctx, mg, f, t + i*b*0.5, b*0.4, 'triangle', 0.14); });
+    var bassLine = [131,131,165,165,196,196,165,165,131,131,110,110,131,131,165,196];
+    bassLine.forEach(function(f, i) { note(ctx, mg, f, t + i*b, b*0.75, 'triangle', 0.3); });
+    [[262,330,392],[349,440,523],[349,440,523],[262,330,392]].forEach(function(c, i) {
+      chord(ctx, mg, c, t + i*b*4, b*3.8, 'sine', 0.16);
+    });
+    var loopLen = bassLine.length * b;
+    t += loopLen;
+    setTimeout(function() { if (bgRunning) loop(); }, (loopLen - 0.3) * 1000);
+  }
+  loop();
+}
+
+/* ── CRESCENDO for R2/R3 reveal ── */
+function playCrescendo() {
+  var ctx = getCtx();
+  if (ctx.state === 'suspended') ctx.resume();
+  var mg = ctx.createGain();
+  mg.gain.setValueAtTime(0.0, ctx.currentTime);
+  mg.gain.linearRampToValueAtTime(0.4, ctx.currentTime + 2.5);
+  mg.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 3.5);
+  mg.connect(ctx.destination);
+  // Rising chromatic rush + timpani-like hit
+  var t = ctx.currentTime;
+  var rising = [110,123,138,155,174,196,220,247,277,311,349,392,440,494,554,587,659,740,830,880,988,1047,1175,1319,1480];
+  rising.forEach(function(f, i) {
+    note(ctx, mg, f, t + i*0.08, 0.15, 'sawtooth', 0.18);
+  });
+  // Big impact chord at end
+  [131,165,196,247,294,330,392,494].forEach(function(f) {
+    note(ctx, mg, f, t + 2.0, 1.2, 'sine', 0.25);
+  });
 }
 
 /* ══ ABOUT PAGE / SPEECH ══ */
@@ -742,6 +923,9 @@ function startPlayer() { hide('landing'); show('player'); initPlayer(); }
    HOST
 ══════════════════════════════════════════ */
 var roomCode = '', hPlayers = {}, hRounds = [], hRound = 0, hCurrent = 0;
+var hPlayedR1 = []; // songs played in R1 for recall
+var hRecallQueue = []; // queue of songs to replay
+var hRecallPlaying = false;
 var hAnswered = false, hTimerID = null, hTimeLeft = 15, hAutoTimer = null;
 var wikiCache = {};
 // Track who answered in what order for scoring
@@ -875,10 +1059,12 @@ function renderHostQ() {
   hide('r1-content'); hide('r2-content'); $('r3-content').classList.add('hidden');
 
   if (type === 'r1') {
+    stopBgMusic();
     show('r1-content');
     $('h-hint').textContent = 'Listen carefully...';
     $('sc-iframe').src = buildSCEmbed(q.sc);
   } else if (type === 'r2') {
+    playBgMusic('suspense');
     show('r2-content');
     var img = $('h-aimg');
     var cached = wikiCache[q.wiki] || '';
@@ -894,6 +1080,7 @@ function renderHostQ() {
     }
     $('h-r2hint').textContent = q.hint || '';
   } else {
+    playBgMusic('suspense');
     $('r3-content').classList.remove('hidden');
     $('r3-content').textContent = q.clue || '';
   }
@@ -932,9 +1119,16 @@ function updateRing(v, max) {
 
 function revealHost() {
   hAnswered = true;
-  if (curType() === 'r1') $('sc-iframe').src = '';
+  var revType = curType();
+  if (revType === 'r1') {
+    $('sc-iframe').src = '';
+    stopBgMusic();
+  } else {
+    stopBgMusic();
+    playCrescendo();
+  }
 
-  var q = curQ(), type = curType();
+  var q = curQ();
   q.answers.forEach(function(_, i) { $('ac' + i).classList.add(i === q.correct ? 'cc' : 'cw'); });
 
   var winners = hAnswerOrder.map(function(id) { return hPlayers[id]; }).filter(Boolean);
@@ -946,19 +1140,24 @@ function revealHost() {
     fb.classList.add('good');
   }
 
-  // Show song name
-  $('song-reveal').innerHTML = 'Song: <strong>' + q.song + '</strong>' + (type === 'r3' ? ' &middot; Artist: <strong>' + q.answers[q.correct] + '</strong>' : '');
+  // Show song name — always. R3 shows song + artist
+  $('song-reveal').innerHTML = 'Song: <strong>' + q.song + '</strong>' + (revType === 'r3' ? ' &middot; Artist: <strong>' + q.answers[q.correct] + '</strong>' : '');
   show('song-reveal');
 
   renderScoreCards();
-  pub('reveal', { correct: q.correct, song: q.song || '', answerOrder: hAnswerOrder, scores: scoreP(), type: type, sc: type === 'r1' ? q.sc : '' });
+  pub('reveal', { correct: q.correct, song: q.song || '', answerOrder: hAnswerOrder, scores: scoreP(), type: revType, sc: revType === 'r1' ? q.sc : '' });
+  // Track R1 songs for recall
+  if (revType === 'r1' && q.sc) {
+    var alreadyAdded = hPlayedR1.some(function(s){return s.sc === q.sc;});
+    if (!alreadyAdded) hPlayedR1.push({song: q.song, sc: q.sc});
+  }
 
   var isLastQ = hCurrent >= totalQ() - 1;
   var isLastR = hRound >= hRounds.length - 1;
+  // R1 gets 5s for sing-along time, others get 6s
+  var autoSec = revType === 'r1' ? 5 : 6;
   var label = isLastQ ? (isLastR ? 'See Results' : 'Round Summary') : 'Next Question';
-
-  // Auto-advance after 5 seconds for ALL rounds
-  var countdown = 5;
+  var countdown = autoSec;
   $('next-btn').textContent = label + ' in ' + countdown + '...';
   show('next-btn');
   hAutoTimer = setInterval(function() {
@@ -1018,7 +1217,7 @@ function hostContinue() {
 }
 
 function hostEnd() {
-  pub('game-end', { scores: scoreP() });
+  pub('game-end', { scores: scoreP(), r1Songs: hPlayedR1 });
   hide('hgame'); show('hend');
   playBgMusic('results');
   var sorted = Object.values(hPlayers).sort(function(a, b) { return b.score - a.score; });
@@ -1033,6 +1232,7 @@ function hostEnd() {
   $('winner-pts').textContent = winner.score + ' pts';
 
   // Results grid
+  var rs = $('recall-section'); if (rs) rs.style.display = 'block';
   var grid = $('results-grid'); grid.innerHTML = '';
   var titles = ['ROCK GOD', 'ROCK LEGEND', 'ROCK BEAST'];
   var trophies = ['🥇', '🥈', '🥉'];
@@ -1044,6 +1244,48 @@ function hostEnd() {
     row.innerHTML = '<div class="result-rank" style="color:' + (rankColors[i] || 'var(--muted)') + '">' + (trophies[i] || (i + 1)) + '</div><div class="result-info"><div class="result-player">' + p.name + '</div><div class="result-title">' + (titles[i] || 'Back to Vinyl') + '</div></div><div class="result-pts">' + p.score + '</div>';
     grid.appendChild(row);
   });
+}
+
+function addToRecallQueue(sc, song) {
+  var already = hRecallQueue.some(function(s){return s.sc === sc;});
+  if (already) return;
+  hRecallQueue.push({sc: sc, song: song});
+  updateRecallDisplay();
+  if (!hRecallPlaying) playNextRecall();
+}
+
+function updateRecallDisplay() {
+  var el = $('recall-queue-display');
+  if (!el) return;
+  if (!hRecallQueue.length) { el.textContent = 'No songs queued yet...'; return; }
+  el.innerHTML = hRecallQueue.map(function(s, i) {
+    return '<div style="padding:4px 0;color:' + (i === 0 ? 'var(--green)' : 'var(--muted)') + ';">' + (i === 0 ? '▶ ' : (i+1)+'. ') + s.song + '</div>';
+  }).join('');
+}
+
+function playNextRecall() {
+  if (!hRecallQueue.length) {
+    hRecallPlaying = false;
+    var nowEl = $('recall-now-playing');
+    if (nowEl) nowEl.textContent = 'All done! 🎉';
+    // Show play again after queue finished
+    setTimeout(function() {
+      pub('recall-done', {});
+    }, 2000);
+    return;
+  }
+  hRecallPlaying = true;
+  var next = hRecallQueue.shift();
+  var nowEl = $('recall-now-playing');
+  if (nowEl) nowEl.textContent = 'Now playing: ' + next.song;
+  // Play on host
+  show('r1-content');
+  $('sc-iframe').src = buildSCEmbed(next.sc);
+  updateRecallDisplay();
+  // After 31 seconds, play next
+  setTimeout(function() {
+    if (hRecallPlaying) playNextRecall();
+  }, 31000);
 }
 
 /* ══════════════════════════════════════════
@@ -1114,7 +1356,29 @@ function playerJoin() {
       $('p-bt-title').textContent = 'Round ' + (d.round + 1) + ' complete!';
       if (d.scores && d.scores[pID]) { pScore = d.scores[pID].score; $('p-bt-score').textContent = pScore; }
     });
-    sub('game-end', function(d) { playerEnd(d.scores); });
+    sub('game-end', function(d) {
+      playerEnd(d.scores);
+      // After 3 seconds show recall screen
+      setTimeout(function() {
+        showRecallScreen(d.r1Songs || []);
+      }, 3000);
+    });
+    sub('recall-done', function() {
+      // Queue finished — show play again
+      hide('precall');
+      show('pend');
+    });
+    sub('singalong-request', function(d) {
+      // Player requested sing-along — play SC embed on host
+      if (d.sc) {
+        $('sc-iframe').src = buildSCEmbed(d.sc);
+        show('r1-content');
+      }
+    });
+    sub('recall-queue', function(d) {
+      // Player added a song to the recall queue
+      if (d.sc && d.song) addToRecallQueue(d.sc, d.song);
+    });
     hide('pjoin'); show('pwaiting');
     $('wait-name').textContent = pName.toUpperCase();
     pub('join', { id: pID, name: pName });
@@ -1183,8 +1447,31 @@ function submitIDK() {
 
 function requestSingalong() {
   if (!pCurrentSC) return;
-  // Open SoundCloud URL in new tab for sing-along
-  window.open(pCurrentSC, '_blank');
+  pub('singalong-request', { sc: pCurrentSC, id: pID });
+}
+
+function showRecallScreen(songs) {
+  if (!songs || !songs.length) return;
+  hide('pend'); show('precall');
+  playBgMusic('singalong');
+  var list = $('precall-list');
+  var queued = {};
+  list.innerHTML = '';
+  songs.forEach(function(s) {
+    var btn = document.createElement('button');
+    btn.style.cssText = 'background:var(--surf);border:2px solid var(--border);border-radius:12px;padding:16px 18px;font-size:16px;font-weight:600;color:var(--text);width:100%;text-align:left;display:flex;align-items:center;gap:12px;cursor:pointer;-webkit-tap-highlight-color:transparent;';
+    btn.innerHTML = '<span style="font-size:24px;">🎵</span><span>' + s.song + '</span>';
+    btn.onclick = function() {
+      if (queued[s.sc]) return;
+      queued[s.sc] = true;
+      btn.style.borderColor = 'var(--green)';
+      btn.style.color = 'var(--green)';
+      btn.innerHTML = '<span style="font-size:24px;">✅</span><span>' + s.song + '</span>';
+      pub('recall-queue', { sc: s.sc, song: s.song, id: pID });
+      $('precall-queued').textContent = 'Added to queue! Watch the TV 🎵';
+    };
+    list.appendChild(btn);
+  });
 }
 
 function playerEnd(scores) {
