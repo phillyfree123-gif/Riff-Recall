@@ -1,0 +1,1009 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<title>Riff &amp; Recall</title>
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
+<style>
+:root{--gold:#F5C842;--red:#E8334A;--green:#2ECC71;--bg:#0A0A0A;--surf:#141414;--surf2:#1E1E1E;--border:#2A2A2A;--text:#F0F0F0;--muted:#666;--fd:'Bebas Neue',sans-serif;--fb:'DM Sans',sans-serif;}
+*{box-sizing:border-box;margin:0;padding:0;}
+html,body{width:100%;min-height:100vh;background:var(--bg);color:var(--text);font-family:var(--fb);}
+.hidden{display:none!important;}
+button{font-family:var(--fb);cursor:pointer;}
+input{font-family:var(--fb);}
+
+/* LANDING */
+#landing{min-height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2rem;text-align:center;padding:2rem;}
+.logo{font-family:var(--fd);font-size:64px;color:var(--gold);letter-spacing:3px;line-height:1;}
+.logo span{color:#fff;}
+.logo-sub{font-size:12px;color:var(--muted);letter-spacing:3px;text-transform:uppercase;}
+.btn-gold{background:var(--gold);color:#111;border:none;border-radius:8px;padding:14px 36px;font-size:16px;font-weight:500;transition:opacity .15s;}
+.btn-gold:hover{opacity:.85;}
+.btn-ghost{background:transparent;color:var(--text);border:1px solid var(--border);border-radius:8px;padding:14px 36px;font-size:16px;font-weight:500;transition:border-color .15s,color .15s;}
+.btn-ghost:hover{border-color:var(--gold);color:var(--gold);}
+
+/* HOST */
+#host{display:flex;flex-direction:column;min-height:100vh;padding:2rem;}
+.host-logo{font-family:var(--fd);font-size:44px;color:var(--gold);letter-spacing:3px;}
+.host-logo span{color:#fff;}
+
+/* LOBBY */
+#lobby{flex:1;display:flex;gap:3rem;align-items:flex-start;margin-top:1.5rem;flex-wrap:wrap;}
+.lobby-l{flex:1;min-width:240px;}
+.lobby-r{width:260px;}
+.lbl{font-size:11px;letter-spacing:2px;text-transform:uppercase;color:var(--muted);margin-bottom:10px;margin-top:1.25rem;}
+.room-code-box{background:var(--surf2);border:2px solid var(--gold);border-radius:12px;padding:20px;text-align:center;margin-bottom:16px;}
+.room-code-label{font-size:12px;letter-spacing:3px;text-transform:uppercase;color:var(--muted);margin-bottom:8px;}
+.room-code-num{font-family:var(--fd);font-size:80px;color:var(--gold);letter-spacing:12px;line-height:1;}
+.url-box{background:var(--surf);border:1px solid var(--border);border-radius:8px;padding:10px 14px;font-size:12px;color:#aaa;word-break:break-all;line-height:1.6;font-family:monospace;}
+.how-to{background:var(--surf);border:1px solid var(--border);border-radius:8px;padding:12px 14px;font-size:13px;color:var(--muted);line-height:1.7;margin-bottom:16px;}
+.how-to strong{color:var(--text);}
+.player-chip{display:flex;align-items:center;gap:10px;background:var(--surf);border:1px solid var(--border);border-radius:8px;padding:10px 14px;animation:sIn .2s ease;margin-bottom:8px;}
+@keyframes sIn{from{opacity:0;transform:translateX(8px);}to{opacity:1;transform:none;}}
+.dot{width:10px;height:10px;border-radius:50%;flex-shrink:0;}
+.chip-name{font-size:14px;font-weight:500;flex:1;}
+.chip-badge{font-size:10px;color:var(--green);letter-spacing:1px;text-transform:uppercase;}
+.start-btn{background:var(--gold);color:#111;border:none;border-radius:8px;padding:13px 32px;font-size:16px;font-weight:500;width:100%;transition:opacity .15s;}
+.start-btn:hover{opacity:.85;}
+.start-btn:disabled{opacity:.35;cursor:default;}
+
+/* ROUND BANNER */
+.round-banner{background:var(--surf2);border:1px solid var(--border);border-radius:10px;padding:14px 20px;display:flex;align-items:center;gap:16px;margin-bottom:.5rem;}
+.round-pill{font-family:var(--fd);font-size:13px;letter-spacing:2px;padding:4px 14px;border-radius:999px;background:var(--gold);color:#111;}
+.round-title{font-size:16px;font-weight:500;}
+.round-desc{font-size:12px;color:var(--muted);}
+
+/* HOST GAME */
+#hgame{flex:1;display:flex;flex-direction:column;gap:.9rem;}
+.hg-top{display:flex;align-items:center;gap:12px;}
+.q-ctr{font-family:var(--fd);font-size:24px;color:var(--muted);}
+.dec-tag{font-size:11px;letter-spacing:2px;text-transform:uppercase;color:var(--muted);background:var(--surf2);border:1px solid var(--border);border-radius:999px;padding:3px 12px;}
+.prog-wrap{height:3px;background:var(--surf2);border-radius:3px;}
+.prog-bar{height:100%;background:var(--gold);border-radius:3px;transition:width .4s;}
+.timer-ring{margin-left:auto;width:60px;height:60px;position:relative;}
+.timer-ring svg{transform:rotate(-90deg);}
+.timer-ring circle{fill:none;stroke-width:5;}
+.t-track{stroke:var(--surf2);}
+.t-fill{stroke:var(--gold);stroke-linecap:round;transition:stroke-dashoffset .95s linear,stroke .3s;}
+.t-fill.hot{stroke:var(--red);}
+.t-num{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-family:var(--fd);font-size:22px;color:var(--gold);}
+.t-num.hot{color:var(--red);}
+
+/* CONTENT BOX — adapts per round */
+.content-box{background:var(--surf);border:1px solid var(--border);border-radius:12px;overflow:hidden;}
+.content-box-inner{padding:1.25rem 1.5rem;}
+.hint-lbl{font-size:11px;letter-spacing:2px;text-transform:uppercase;color:var(--muted);margin-bottom:4px;}
+.hint-txt{font-size:17px;font-weight:500;margin-bottom:12px;}
+
+/* R1 audio */
+.audio-row{display:flex;align-items:center;gap:12px;}
+.play-btn{width:52px;height:52px;border-radius:50%;background:var(--gold);border:none;display:flex;align-items:center;justify-content:center;flex-shrink:0;transition:opacity .15s,transform .1s;}
+.play-btn:hover{opacity:.85;transform:scale(1.04);}
+.bar-wrap{flex:1;height:4px;background:var(--surf2);border-radius:4px;overflow:hidden;}
+.bar{height:100%;background:var(--gold);width:0%;transition:width .5s linear;}
+
+/* R2 image */
+.artist-img{width:100%;max-height:280px;object-fit:cover;object-position:top;display:block;}
+.img-blur{filter:blur(18px);transition:filter .4s;}
+.img-reveal{filter:none;}
+
+/* R3 lyric clue */
+.lyric-clue{font-size:16px;line-height:1.8;color:var(--text);padding:1.25rem 1.5rem;background:var(--surf2);border-radius:8px;border-left:3px solid var(--gold);font-style:italic;}
+
+/* ANSWERS */
+.ans-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;}
+.ans-chip{background:var(--surf);border:1px solid var(--border);border-radius:8px;padding:14px 16px;font-size:14px;display:flex;align-items:center;gap:10px;}
+.ans-chip .ltr{font-family:var(--fd);font-size:20px;color:var(--gold);width:18px;flex-shrink:0;}
+.ans-chip.cc{border-color:var(--green);background:rgba(46,204,113,.08);}
+.ans-chip.cw{border-color:var(--red);background:rgba(232,51,74,.06);opacity:.55;}
+
+/* SCOREBOARD */
+.score-row{display:flex;flex-wrap:wrap;gap:10px;}
+.score-card{background:var(--surf);border:1px solid var(--border);border-radius:10px;padding:12px 14px;min-width:110px;flex:1;}
+.score-card.sc-ok{border-color:var(--green);}
+.score-card.sc-no{border-color:var(--red);}
+.score-card.sc-first{border-color:var(--gold);box-shadow:0 0 0 1px var(--gold);}
+.sc-name{font-size:12px;font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.sc-pts{font-family:var(--fd);font-size:22px;color:var(--gold);line-height:1.1;}
+.sc-st{font-size:10px;letter-spacing:1px;text-transform:uppercase;margin-top:2px;}
+.sc-w{color:var(--muted);}
+.sc-l{color:var(--green);}
+
+.feedback{text-align:center;font-size:15px;font-weight:500;min-height:22px;}
+.feedback.good{color:var(--green);}
+.feedback.bad{color:var(--red);}
+.reveal-row{display:flex;align-items:center;gap:10px;margin-top:8px;}
+.reveal-btn{background:transparent;border:1px solid var(--border);border-radius:6px;padding:5px 12px;font-size:12px;color:var(--muted);cursor:pointer;transition:border-color .12s,color .12s;}
+.reveal-btn:hover{border-color:var(--gold);color:var(--gold);}
+.song-reveal-txt{font-size:13px;color:var(--muted);}
+.song-reveal-txt strong{color:var(--text);}
+.next-btn{align-self:center;background:var(--gold);color:#111;border:none;border-radius:8px;padding:12px 32px;font-size:15px;font-weight:500;transition:opacity .15s;margin-top:.25rem;}
+.next-btn:hover{opacity:.85;}
+
+/* BETWEEN ROUNDS */
+#hbetween{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1.5rem;text-align:center;}
+.between-round-pill{font-family:var(--fd);font-size:48px;color:var(--gold);letter-spacing:4px;}
+.between-scores{display:flex;flex-wrap:wrap;gap:12px;justify-content:center;max-width:600px;}
+.bs-card{background:var(--surf);border:1px solid var(--border);border-radius:10px;padding:14px 20px;text-align:center;min-width:120px;}
+.bs-name{font-size:13px;font-weight:500;margin-bottom:4px;}
+.bs-pts{font-family:var(--fd);font-size:32px;color:var(--gold);}
+
+/* END */
+#hend{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2rem;}
+.podium{display:flex;gap:12px;align-items:flex-end;justify-content:center;flex-wrap:wrap;}
+.podium-card{background:var(--surf);border:1px solid var(--border);border-radius:12px;padding:20px;text-align:center;min-width:130px;}
+.podium-card.p1{border-color:var(--gold);min-width:160px;}
+.podium-card.p2{border-color:#aaa;}
+.podium-card.p3{border-color:#cd7f32;}
+.p-rank{font-family:var(--fd);font-size:40px;color:var(--muted);line-height:1;margin-bottom:6px;}
+.p-rank.gold{color:var(--gold);font-size:52px;}
+.p-name{font-size:14px;font-weight:500;margin-bottom:4px;}
+.p-pts{font-family:var(--fd);font-size:32px;color:var(--gold);}
+
+/* PLAYER */
+#player{display:flex;flex-direction:column;min-height:100vh;padding:1.25rem 1rem;}
+#pjoin{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1.25rem;text-align:center;}
+.p-logo{font-family:var(--fd);font-size:42px;color:var(--gold);letter-spacing:3px;}
+.p-logo span{color:#fff;}
+.code-wrap{display:flex;flex-direction:column;align-items:center;gap:6px;width:100%;max-width:280px;}
+.code-lbl{font-size:11px;letter-spacing:2px;text-transform:uppercase;color:var(--muted);}
+.code-input{background:var(--surf);border:2px solid var(--border);border-radius:8px;padding:12px;color:var(--gold);font-family:var(--fd);font-size:40px;width:100%;text-align:center;letter-spacing:8px;outline:none;transition:border-color .15s;}
+.code-input:focus{border-color:var(--gold);}
+.code-input::placeholder{color:#333;font-size:28px;letter-spacing:4px;}
+.name-input{background:var(--surf);border:1px solid var(--border);border-radius:8px;padding:14px 16px;color:var(--text);font-size:18px;width:100%;max-width:280px;text-align:center;outline:none;transition:border-color .15s;}
+.name-input:focus{border-color:var(--gold);}
+.name-input::placeholder{color:var(--muted);}
+.join-btn{background:var(--gold);color:#111;border:none;border-radius:8px;padding:14px;font-size:17px;font-weight:500;width:100%;max-width:280px;transition:opacity .15s;}
+.join-btn:hover{opacity:.85;}
+.err{font-size:13px;color:var(--red);min-height:18px;}
+
+#pwaiting{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1rem;text-align:center;}
+.pulse{width:14px;height:14px;border-radius:50%;background:var(--gold);animation:pulse 1.4s infinite;}
+@keyframes pulse{0%,100%{opacity:1;transform:scale(1);}50%{opacity:.3;transform:scale(.6);}}
+.wait-name{font-family:var(--fd);font-size:30px;letter-spacing:2px;}
+
+#pgame{flex:1;display:flex;flex-direction:column;gap:.85rem;}
+.p-hdr{display:flex;align-items:center;justify-content:space-between;padding-bottom:.75rem;border-bottom:1px solid var(--border);}
+.p-av{width:38px;height:38px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:500;color:#111;flex-shrink:0;}
+.p-score{font-family:var(--fd);font-size:26px;color:var(--gold);}
+.p-round-badge{font-size:10px;letter-spacing:2px;text-transform:uppercase;color:var(--muted);text-align:center;padding:4px 10px;background:var(--surf);border-radius:20px;border:1px solid var(--border);}
+.p-q-ind{font-size:11px;letter-spacing:1px;text-transform:uppercase;color:var(--muted);text-align:center;}
+
+/* player content area */
+.p-content{background:var(--surf);border:1px solid var(--border);border-radius:10px;padding:1rem;text-align:center;}
+.p-content-lbl{font-size:10px;letter-spacing:2px;text-transform:uppercase;color:var(--muted);margin-bottom:5px;}
+.p-content-hint{font-size:15px;font-weight:500;margin-bottom:8px;}
+.music-bars{display:flex;align-items:flex-end;justify-content:center;gap:3px;height:24px;margin:6px auto 0;}
+.bar-anim{width:4px;background:var(--gold);border-radius:2px;animation:bounce 1s ease infinite;}
+.bar-anim:nth-child(2){animation-delay:.15s;}
+.bar-anim:nth-child(3){animation-delay:.3s;}
+.bar-anim:nth-child(4){animation-delay:.45s;}
+.bar-anim:nth-child(5){animation-delay:.6s;}
+@keyframes bounce{0%,100%{height:6px;}50%{height:22px;}}
+.music-bars.paused .bar-anim{animation:none;height:6px;}
+.p-img-preview{width:100%;max-height:160px;object-fit:cover;object-position:top;border-radius:6px;display:block;margin:0 auto;}
+.p-lyric-clue{font-size:13px;line-height:1.7;color:var(--text);font-style:italic;text-align:left;padding:.75rem;background:var(--surf2);border-radius:6px;border-left:2px solid var(--gold);}
+
+/* first-to-answer indicator */
+.first-badge{display:inline-block;background:var(--gold);color:#111;font-size:10px;font-weight:500;letter-spacing:1px;padding:2px 8px;border-radius:20px;margin-left:6px;text-transform:uppercase;vertical-align:middle;}
+
+.p-ans-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;}
+.p-ans{background:var(--surf);border:2px solid var(--border);border-radius:12px;padding:16px 10px;color:var(--text);font-size:13px;font-weight:500;text-align:center;line-height:1.3;display:flex;flex-direction:column;align-items:center;gap:4px;-webkit-tap-highlight-color:transparent;transition:border-color .12s,background .12s,transform .1s;}
+.p-ans .al{font-family:var(--fd);font-size:24px;color:var(--gold);}
+.p-ans:active{transform:scale(.95);}
+.p-ans:disabled{cursor:default;}
+.p-ans.pa-sel{border-color:var(--gold);background:rgba(245,200,66,.1);}
+.p-ans.pa-ok{border-color:var(--green);background:rgba(46,204,113,.1);color:#7ee87e;}
+.p-ans.pa-no{border-color:var(--red);background:rgba(232,51,74,.1);color:#f09595;}
+.p-ans.pa-rev{border-color:var(--green);background:rgba(46,204,113,.1);color:#7ee87e;}
+.p-ans.pa-first{border-color:var(--gold);background:rgba(245,200,66,.15);}
+.locked-msg{text-align:center;font-size:13px;color:var(--muted);padding:.75rem;background:var(--surf);border-radius:8px;border:1px solid var(--border);}
+.locked-msg strong{color:var(--green);display:block;font-size:15px;margin-bottom:3px;}
+
+#pbetween{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1rem;text-align:center;}
+#pend{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1rem;text-align:center;}
+.final-score{font-family:var(--fd);font-size:80px;color:var(--gold);line-height:1;}
+.final-lbl{font-size:11px;letter-spacing:2px;text-transform:uppercase;color:var(--muted);}
+.final-grade{font-family:var(--fd);font-size:30px;letter-spacing:2px;margin-top:.5rem;}
+
+#sbar{position:fixed;bottom:0;left:0;right:0;background:var(--surf);border-top:1px solid var(--border);padding:7px 16px;font-size:12px;color:var(--muted);display:flex;align-items:center;gap:8px;z-index:99;}
+.sdot{width:7px;height:7px;border-radius:50%;flex-shrink:0;}
+.sdot.ok{background:var(--green);}
+.sdot.err{background:var(--red);}
+.sdot.wait{background:var(--gold);}
+</style>
+</head>
+<body>
+
+<!-- LANDING -->
+<div id="landing">
+  <div class="logo">Riff <span>&</span> Recall</div>
+  <div class="logo-sub">3 Rounds · Music Trivia</div>
+  <div style="display:flex;gap:8px;flex-wrap:wrap;justify-content:center;font-size:13px;color:var(--muted);margin-top:-.5rem;">
+    <span>Round 1: Audio clips</span><span style="color:var(--border);">|</span>
+    <span>Round 2: Musician photos</span><span style="color:var(--border);">|</span>
+    <span>Round 3: Lyric clues</span>
+  </div>
+  <div style="display:flex;gap:16px;flex-wrap:wrap;justify-content:center;">
+    <button class="btn-gold" style="font-size:18px;padding:16px 48px;" onclick="startHost()">Host on TV</button>
+    <button class="btn-ghost" style="font-size:18px;padding:16px 48px;" onclick="startPlayer()">Join as Player</button>
+  </div>
+  <div style="font-size:12px;color:var(--muted);">Open on TV to host · Open on phone to join</div>
+</div>
+
+<!-- AUDIO UNLOCK OVERLAY -->
+<div id="audio-unlock-overlay" class="hidden" style="position:fixed;inset:0;background:rgba(0,0,0,.88);z-index:999;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1.5rem;text-align:center;padding:2rem;"><div style="font-family:Bebas Neue,sans-serif;font-size:36px;color:#F5C842;letter-spacing:3px;">Riff &amp; Recall</div><div style="font-size:15px;color:#aaa;max-width:320px;line-height:1.6;">Tap below to enable audio.<br>Browsers require a tap before playing sound.</div><button onclick="unlockAudio()" style="background:#F5C842;color:#111;border:none;border-radius:10px;padding:18px 48px;font-size:20px;font-weight:600;font-family:DM Sans,sans-serif;cursor:pointer;">Tap to Enable Audio</button><div style="font-size:12px;color:#555;">Only needed once per session</div></div>
+
+<!-- HOST -->
+<div id="host" class="hidden">
+  <div class="host-logo">Riff <span>&</span> Recall</div>
+
+  <!-- LOBBY -->
+  <div id="lobby">
+    <div class="lobby-l">
+      <div class="lbl" style="margin-top:1rem;">Room code</div>
+      <div class="room-code-box">
+        <div class="room-code-label">Players enter this code</div>
+        <div class="room-code-num" id="room-code-num">----</div>
+      </div>
+      <div class="lbl">Game link</div>
+      <div style="display:flex;gap:8px;align-items:center;margin-bottom:14px;">
+        <div class="url-box" id="url-box" style="flex:1;"></div>
+        <button id="copy-btn" onclick="copyLink()" style="flex-shrink:0;background:var(--gold);color:#111;border:none;border-radius:8px;padding:10px 14px;font-size:13px;font-weight:500;cursor:pointer;white-space:nowrap;">Copy</button>
+      </div>
+      <div class="how-to">
+        <strong>How players join:</strong><br>
+        1. Open the game link on their phone<br>
+        2. Tap <strong>Join as Player</strong><br>
+        3. Type the 4-digit room code &amp; name
+      </div>
+      <div id="conn-status" style="font-size:13px;color:var(--muted);margin-bottom:10px;">Connecting...</div>
+      <button class="start-btn" id="start-btn" disabled onclick="unlockAudio();startHost()">Waiting for players...</button>
+    </div>
+    <div class="lobby-r">
+      <div class="lbl" style="margin-top:0;">Players joined</div>
+      <div id="player-list"><div style="font-size:13px;color:var(--muted);">None yet...</div></div>
+    </div>
+  </div>
+
+  <!-- GAME -->
+  <div id="hgame" class="hidden">
+    <div class="round-banner">
+      <div class="round-pill" id="h-round-pill">R1</div>
+      <div>
+        <div class="round-title" id="h-round-title">Round 1 — Audio Clips</div>
+        <div class="round-desc" id="h-round-desc">Listen and guess the artist</div>
+      </div>
+    </div>
+    <div class="hg-top">
+      <div class="q-ctr" id="q-ctr">Q 1 / 30</div>
+      <span class="dec-tag" id="dec-tag">70s</span>
+      <div class="timer-ring">
+        <svg width="60" height="60" viewBox="0 0 60 60">
+          <circle class="t-track" cx="30" cy="30" r="26"/>
+          <circle class="t-fill" id="t-circle" cx="30" cy="30" r="26" stroke-dasharray="163.36" stroke-dashoffset="0"/>
+        </svg>
+        <div class="t-num" id="t-num">15</div>
+      </div>
+    </div>
+    <div class="prog-wrap"><div class="prog-bar" id="prog-bar" style="width:0%"></div></div>
+
+    <!-- Content area — changes per round -->
+    <div class="content-box" id="content-box">
+      <!-- R1: audio -->
+      <div class="content-box-inner" id="r1-content">
+        <div class="hint-lbl">Now playing — guess the artist!</div>
+        <div class="hint-txt" id="h-hint">—</div>
+        <div class="audio-row">
+          <button class="play-btn" onclick="togglePlay()">
+            <svg id="h-play-ic" width="22" height="22" fill="#111" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>
+            <svg id="h-pause-ic" class="hidden" width="22" height="22" fill="#111" viewBox="0 0 24 24"><path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"/></svg>
+          </button>
+          <div class="bar-wrap"><div class="bar" id="h-bar"></div></div>
+        </div>
+      </div>
+      <!-- R2: image -->
+      <div id="r2-content" class="hidden">
+        <img id="h-artist-img" class="artist-img img-blur" src="" alt="Mystery artist">
+        <div class="content-box-inner" style="padding-top:.75rem;">
+          <div class="hint-lbl">Who is this artist?</div>
+          <div class="hint-txt" id="h-r2-hint">—</div>
+        </div>
+      </div>
+      <!-- R3: lyric clue -->
+      <div class="content-box-inner" id="r3-content" class="hidden">
+        <div class="hint-lbl">Lyric clue — guess the song &amp; artist!</div>
+        <div class="lyric-clue" id="h-lyric-clue">—</div>
+      </div>
+    </div>
+
+    <div class="ans-grid" id="ans-grid"></div>
+    <div class="score-row" id="score-row"></div>
+    <div class="feedback" id="feedback"></div>
+    <div class="reveal-row">
+      <span class="song-reveal-txt hidden" id="song-reveal-txt"></span>
+      <button class="reveal-btn hidden" id="reveal-btn" onclick="revealAnswer()">Reveal answer</button>
+    </div>
+    <button class="next-btn hidden" id="next-btn" onclick="hostNext()">Next Question</button>
+  </div>
+
+  <!-- BETWEEN ROUNDS -->
+  <div id="hbetween" class="hidden">
+    <div class="between-round-pill" id="between-title">Round 1 Complete!</div>
+    <div style="font-size:15px;color:var(--muted);" id="between-subtitle">Get ready for Round 2</div>
+    <div class="between-scores" id="between-scores"></div>
+    <button class="btn-gold" style="font-size:16px;padding:14px 40px;" onclick="hostContinue()">Start Next Round</button>
+  </div>
+
+  <!-- END -->
+  <div id="hend" class="hidden">
+    <div class="host-logo" style="font-size:36px;">Game Over</div>
+    <div class="podium" id="podium"></div>
+    <button class="btn-ghost" style="margin-top:1rem;" onclick="location.reload()">Play Again</button>
+  </div>
+</div>
+
+<!-- PLAYER -->
+<div id="player" class="hidden">
+  <div id="pjoin">
+    <div class="p-logo">Riff <span>&</span> Recall</div>
+    <div style="font-size:12px;color:var(--muted);letter-spacing:2px;">3 ROUNDS · MUSIC TRIVIA</div>
+    <div class="code-wrap">
+      <div class="code-lbl">Room Code (from TV)</div>
+      <input class="code-input" id="code-inp" type="tel" maxlength="4" placeholder="0000" autocomplete="off" inputmode="numeric">
+    </div>
+    <input class="name-input" id="pname" type="text" placeholder="Your name" maxlength="16" autocomplete="off">
+    <button class="join-btn" onclick="playerJoin()">Join Game</button>
+    <div class="err" id="perr"></div>
+  </div>
+
+  <div id="pwaiting" class="hidden">
+    <div class="pulse"></div>
+    <div class="wait-name" id="wait-name" style="margin-top:.5rem;"></div>
+    <div style="font-size:13px;color:var(--muted);">You're in! Waiting for host...</div>
+  </div>
+
+  <div id="pgame" class="hidden">
+    <div class="p-hdr">
+      <div style="display:flex;align-items:center;gap:10px;">
+        <div class="p-av" id="p-av">?</div>
+        <div>
+          <div style="font-size:14px;font-weight:500;" id="p-dname">Player</div>
+          <div style="font-size:11px;color:var(--muted);">points</div>
+        </div>
+      </div>
+      <div class="p-score" id="p-score">0</div>
+    </div>
+    <div style="display:flex;gap:8px;align-items:center;">
+      <div class="p-round-badge" id="p-round-badge">Round 1</div>
+      <div class="p-q-ind" id="p-q-ind">Question 1</div>
+    </div>
+    <div class="p-content" id="p-content">
+      <div class="p-content-lbl" id="p-content-lbl">Now playing on TV</div>
+      <div class="p-content-hint" id="p-content-hint">—</div>
+      <div id="p-content-extra"></div>
+    </div>
+    <div class="p-ans-grid" id="p-ans-grid"></div>
+    <div class="locked-msg hidden" id="p-locked">
+      <strong id="p-locked-title">Locked in!</strong>
+      <span id="p-locked-sub">Waiting for others...</span>
+    </div>
+  </div>
+
+  <div id="pbetween" class="hidden">
+    <div class="pulse"></div>
+    <div style="font-family:var(--fd);font-size:28px;letter-spacing:2px;color:var(--gold);" id="p-between-title">Round Complete!</div>
+    <div style="font-size:13px;color:var(--muted);">Waiting for next round...</div>
+    <div style="font-family:var(--fd);font-size:48px;color:var(--gold);" id="p-between-score">0</div>
+    <div style="font-size:12px;color:var(--muted);">your score so far</div>
+  </div>
+
+  <div id="pend" class="hidden">
+    <div class="p-logo">Riff <span>&</span> Recall</div>
+    <div class="final-score" id="p-final"></div>
+    <div class="final-lbl">Final Score</div>
+    <div class="final-grade" id="p-grade"></div>
+    <div style="font-size:13px;color:var(--muted);margin-top:.5rem;">Check the TV for the full leaderboard!</div>
+  </div>
+</div>
+
+<div id="sbar" class="hidden">
+  <div class="sdot" id="sdot"></div>
+  <span id="stxt">Connecting...</span>
+</div>
+
+<script>
+'use strict';
+const ABLY_KEY='Ug5YfA.d_CijQ:fH7cgOykNFEkY_4ZNfQNgcJ7F7tSjYiW15J43NfLVTM';
+const COLORS=['#F5C842','#4CAF50','#E8334A','#5B9CF6','#C97BE8','#FF8C42','#5DCAA5','#ED93B1'];
+const LTRS=['A','B','C','D'];
+
+/* ══════════════════════════════════════════
+   ROUND 1 — Audio clips (80 songs, pick 30)
+   iTunes 30s previews — publicly accessible
+══════════════════════════════════════════ */
+const R1_POOL = [
+  {decade:'70s',hint:'70s Arena Rock',song:'Bohemian Rhapsody — Queen',preview_url:'https://audio-ssl.itunes.apple.com/itunes-assets/AudioPreview115/v4/1e/93/91/1e9391f1-db92-9b24-4823-1b76c4b32e0e/mzaf_14166620410354784485.plus.aac.p.m4a',answers:['Queen','Led Zeppelin','The Who','Aerosmith'],correct:0},
+  {decade:'70s',hint:'70s Country Rock',song:'Hotel California — Eagles',preview_url:'https://audio-ssl.itunes.apple.com/itunes-assets/AudioPreview125/v4/97/f7/68/97f76818-7e9c-97b5-5982-65fcafdf2f2e/mzaf_5012730325795441984.plus.aac.p.m4a',answers:['The Eagles','Fleetwood Mac','Crosby Stills Nash','Steely Dan'],correct:0},
+  {decade:'70s',hint:'70s Disco',song:'Stayin Alive — Bee Gees',preview_url:'https://audio-ssl.itunes.apple.com/itunes-assets/AudioPreview125/v4/da/86/31/da863157-3765-bfd4-7d50-7ab8d2d69aff/mzaf_13811929265879685168.plus.aac.p.m4a',answers:['Bee Gees','ABBA','Donna Summer','Village People'],correct:0},
+  {decade:'70s',hint:'70s Funk',song:'Le Freak — Chic',preview_url:'https://audio-ssl.itunes.apple.com/itunes-assets/AudioPreview125/v4/dc/f5/7b/dcf57b29-d1af-8a3a-d451-a63aa07b3af2/mzaf_5524575849521534766.plus.aac.p.m4a',answers:['Chic','Earth Wind Fire','KC Sunshine','Sister Sledge'],correct:0},
+  {decade:'70s',hint:'70s New Wave',song:'Roxanne — The Police',preview_url:'https://audio-ssl.itunes.apple.com/itunes-assets/AudioPreview116/v4/c5/d4/6d/c5d46da5-6087-a073-e2be-6e6e2a0b0e0b/mzaf_12844064498302631848.plus.aac.p.m4a',answers:['The Clash','The Police','Blondie','The Jam'],correct:1},
+  {decade:'70s',hint:'70s Soul',song:'September — Earth Wind & Fire',preview_url:'https://audio-ssl.itunes.apple.com/itunes-assets/AudioPreview125/v4/99/04/ae/9904ae4a-6ecf-0928-9b5e-ff1efbd4a2ea/mzaf_14891572665346559658.plus.aac.p.m4a',answers:['Earth Wind Fire','Kool The Gang','Chic','Parliament'],correct:0},
+  {decade:'70s',hint:'70s Rock',song:'Dream On — Aerosmith',preview_url:'https://audio-ssl.itunes.apple.com/itunes-assets/AudioPreview125/v4/5e/8b/29/5e8b2916-6d35-cca0-80d9-3d83d4dc47ed/mzaf_16617571789929863538.plus.aac.p.m4a',answers:['Aerosmith','Led Zeppelin','The Who','Deep Purple'],correct:0},
+  {decade:'70s',hint:'70s Classic Rock',song:'Go Your Own Way — Fleetwood Mac',preview_url:'https://audio-ssl.itunes.apple.com/itunes-assets/AudioPreview125/v4/f5/6e/e1/f56ee100-b64f-2b42-8a7d-e0a3e55c8762/mzaf_6517931360636020583.plus.aac.p.m4a',answers:['Fleetwood Mac','Eagles','Steely Dan','Crosby Stills Nash'],correct:0},
+  {decade:'70s',hint:'70s Soft Rock',song:'More Than A Feeling — Boston',preview_url:'https://audio-ssl.itunes.apple.com/itunes-assets/AudioPreview115/v4/a4/7c/fc/a47cfc3b-58e5-d0e1-4c0f-46ad87a21a98/mzaf_3963603651834541097.plus.aac.p.m4a',answers:['Boston','Journey','Styx','Foreigner'],correct:0},
+  {decade:'70s',hint:'70s Progressive Rock',song:"Don't Stop Believin — Journey",preview_url:'https://audio-ssl.itunes.apple.com/itunes-assets/AudioPreview115/v4/68/41/e0/6841e09a-bc12-7f4d-9d97-d1ab6ad3f5f2/mzaf_3649936601960281413.plus.aac.p.m4a',answers:['Journey','Boston','Styx','REO Speedwagon'],correct:0},
+  {decade:'80s',hint:'80s Pop',song:'Thriller — Michael Jackson',preview_url:'https://audio-ssl.itunes.apple.com/itunes-assets/AudioPreview115/v4/62/b0/c6/62b0c6d0-af54-8b22-6e01-0bba5b0ef28c/mzaf_12697050463607889965.plus.aac.p.m4a',answers:['Prince','Michael Jackson','David Bowie','Madonna'],correct:1},
+  {decade:'80s',hint:'80s Hard Rock',song:"Sweet Child O' Mine — Guns N' Roses",preview_url:'https://audio-ssl.itunes.apple.com/itunes-assets/AudioPreview125/v4/9a/04/5c/9a045cf3-4607-a036-cd5c-d2dbb8c2e794/mzaf_5285093753688525683.plus.aac.p.m4a',answers:["Bon Jovi","Def Leppard","Guns N Roses","Motley Crue"],correct:2},
+  {decade:'80s',hint:'80s New Wave',song:'Girls Just Want To Have Fun — Cyndi Lauper',preview_url:'https://audio-ssl.itunes.apple.com/itunes-assets/AudioPreview125/v4/8a/ae/cf/8aaecffd-0c67-5bf9-3e2d-2f31e5b8af72/mzaf_15282905773011388316.plus.aac.p.m4a',answers:['Pat Benatar','Cyndi Lauper','Madonna','Kim Wilde'],correct:1},
+  {decade:'80s',hint:'80s Rock',song:'Every Breath You Take — The Police',preview_url:'https://audio-ssl.itunes.apple.com/itunes-assets/AudioPreview115/v4/87/ed/b8/87edb8c1-6d7e-0e70-3d2e-e0ea60e16b38/mzaf_13528517326984028702.plus.aac.p.m4a',answers:['Duran Duran','Tears For Fears','The Police','U2'],correct:2},
+  {decade:'80s',hint:'80s Pop/R&B',song:'Purple Rain — Prince',preview_url:'https://audio-ssl.itunes.apple.com/itunes-assets/AudioPreview125/v4/4f/4e/1b/4f4e1b06-cc10-4b72-ee1e-ccd44d7fada8/mzaf_10485098930988424448.plus.aac.p.m4a',answers:['Michael Jackson','Prince','Rick James','David Bowie'],correct:1},
+  {decade:'80s',hint:'80s Synth Pop',song:"Don't You Forget About Me — Simple Minds",preview_url:'https://audio-ssl.itunes.apple.com/itunes-assets/AudioPreview125/v4/74/e2/6a/74e26a20-d7dc-2eaa-3a5a-f9c00be26bf3/mzaf_16420219438389952413.plus.aac.p.m4a',answers:['Simple Minds','The Cure','Depeche Mode','New Order'],correct:0},
+  {decade:'80s',hint:'80s Hair Metal',song:"Livin On A Prayer — Bon Jovi",preview_url:'https://audio-ssl.itunes.apple.com/itunes-assets/AudioPreview125/v4/c3/fc/88/c3fc88e0-5f41-27db-38c6-d4b65c8e13c5/mzaf_8905046533282029758.plus.aac.p.m4a',answers:['Motley Crue','Bon Jovi','Poison','Whitesnake'],correct:1},
+  {decade:'80s',hint:'80s Arena Rock',song:'Eye Of The Tiger — Survivor',preview_url:'https://audio-ssl.itunes.apple.com/itunes-assets/AudioPreview125/v4/44/db/0c/44db0c47-9ea3-15dd-ab71-e35a7fce7e29/mzaf_5786430740249975580.plus.aac.p.m4a',answers:['Survivor','Journey','Foreigner','Asia'],correct:0},
+  {decade:'80s',hint:'80s Dance Pop',song:"Like A Prayer — Madonna",preview_url:'https://audio-ssl.itunes.apple.com/itunes-assets/AudioPreview125/v4/1a/a3/c3/1aa3c3cc-23c2-5e5d-49f2-3a3ed9e27001/mzaf_15375699046282726929.plus.aac.p.m4a',answers:['Cyndi Lauper','Madonna','Whitney Houston','Janet Jackson'],correct:1},
+  {decade:'80s',hint:'80s R&B',song:'I Wanna Dance With Somebody — Whitney Houston',preview_url:'https://audio-ssl.itunes.apple.com/itunes-assets/AudioPreview125/v4/17/40/04/174004c2-0d0d-8b5a-94e3-0d62ad41f2e0/mzaf_16703729523093671792.plus.aac.p.m4a',answers:['Whitney Houston','Janet Jackson','Tina Turner','Gloria Estefan'],correct:0},
+  {decade:'90s',hint:'90s Grunge',song:'Smells Like Teen Spirit — Nirvana',preview_url:'https://audio-ssl.itunes.apple.com/itunes-assets/AudioPreview125/v4/fb/2b/68/fb2b6840-a6a5-0e95-95a3-e06a2ff1ee5a/mzaf_14869389286350248044.plus.aac.p.m4a',answers:['Pearl Jam','Alice In Chains','Nirvana','Soundgarden'],correct:2},
+  {decade:'90s',hint:'90s R&B',song:'Waterfalls — TLC',preview_url:'https://audio-ssl.itunes.apple.com/itunes-assets/AudioPreview115/v4/46/2a/46/462a4640-c264-9462-1476-c2f90b0f7cf1/mzaf_10764735756354183530.plus.aac.p.m4a',answers:['Destinys Child','TLC','En Vogue','SWV'],correct:1},
+  {decade:'90s',hint:'90s Hip-Hop',song:"Gangsta's Paradise — Coolio",preview_url:'https://audio-ssl.itunes.apple.com/itunes-assets/AudioPreview125/v4/82/6c/e4/826ce495-faa5-47b4-4fad-2dc5f0451b4b/mzaf_7590620736758440556.plus.aac.p.m4a',answers:['Coolio','Tupac','Snoop Dogg','Ice Cube'],correct:0},
+  {decade:'90s',hint:'90s Pop',song:'Baby One More Time — Britney Spears',preview_url:'https://audio-ssl.itunes.apple.com/itunes-assets/AudioPreview125/v4/d6/e1/8e/d6e18e38-eba4-e18f-3a95-2847c8e15bae/mzaf_4904958388993097488.plus.aac.p.m4a',answers:['Britney Spears','Christina Aguilera','Mandy Moore','Jessica Simpson'],correct:0},
+  {decade:'90s',hint:'90s R&B Group',song:'No Scrubs — TLC',preview_url:'https://audio-ssl.itunes.apple.com/itunes-assets/AudioPreview125/v4/25/78/2e/25782eba-4d63-0059-9f39-c2d83ba7bbba/mzaf_17034562748908988090.plus.aac.p.m4a',answers:['Destinys Child','SWV','TLC','En Vogue'],correct:2},
+  {decade:'90s',hint:'90s Alt Rock',song:'Losing My Religion — REM',preview_url:'https://audio-ssl.itunes.apple.com/itunes-assets/AudioPreview125/v4/82/bc/45/82bc451c-1a3c-82a7-4a4a-24dcfe6e52c5/mzaf_6728701510861384832.plus.aac.p.m4a',answers:['U2','R.E.M.','Radiohead','The Cure'],correct:1},
+  {decade:'90s',hint:'90s Grunge',song:'Black Hole Sun — Soundgarden',preview_url:'https://audio-ssl.itunes.apple.com/itunes-assets/AudioPreview125/v4/83/1d/1e/831d1e5f-b0f5-f073-7d3c-06feef5c3dbd/mzaf_15126044272040478748.plus.aac.p.m4a',answers:['Soundgarden','Pearl Jam','Alice In Chains','Nirvana'],correct:0},
+  {decade:'90s',hint:'90s Pop Punk',song:'Basket Case — Green Day',preview_url:'https://audio-ssl.itunes.apple.com/itunes-assets/AudioPreview125/v4/03/28/01/03280127-0a85-beed-1cae-41a8cbec5038/mzaf_14041248449649133562.plus.aac.p.m4a',answers:['Green Day','Offspring','Blink-182','Weezer'],correct:0},
+  {decade:'90s',hint:'90s Hip-Hop',song:'California Love — 2Pac',preview_url:'https://audio-ssl.itunes.apple.com/itunes-assets/AudioPreview125/v4/c1/f3/7d/c1f37d4f-2344-3ce4-3b3e-ebf0e27d7eba/mzaf_1285481978617888034.plus.aac.p.m4a',answers:['Biggie Smalls','2Pac','Snoop Dogg','Ice Cube'],correct:1},
+  {decade:'90s',hint:'90s Britpop',song:'Wonderwall — Oasis',preview_url:'https://audio-ssl.itunes.apple.com/itunes-assets/AudioPreview125/v4/13/f4/3c/13f43cc1-5a82-4e12-8e83-b4c28bf90a55/mzaf_14538877124804756413.plus.aac.p.m4a',answers:['Blur','Oasis','Pulp','Suede'],correct:1},
+  {decade:'2000s',hint:'00s R&B',song:'Crazy In Love — Beyonce',preview_url:'https://audio-ssl.itunes.apple.com/itunes-assets/AudioPreview115/v4/ae/23/43/ae234368-e56b-0571-49e8-ce5ee1e30f5e/mzaf_5975978060957546859.plus.aac.p.m4a',answers:['Rihanna','Beyonce','Alicia Keys','Mary J Blige'],correct:1},
+  {decade:'2000s',hint:'00s Rock',song:'Boulevard of Broken Dreams — Green Day',preview_url:'https://audio-ssl.itunes.apple.com/itunes-assets/AudioPreview125/v4/8a/c3/55/8ac35518-7da9-f8f0-4ff5-1a58f3b41594/mzaf_14001388596831682088.plus.aac.p.m4a',answers:['My Chemical Romance','Linkin Park','Green Day','Fall Out Boy'],correct:2},
+  {decade:'2000s',hint:'00s Hip-Hop',song:'Yeah — Usher',preview_url:'https://audio-ssl.itunes.apple.com/itunes-assets/AudioPreview125/v4/9b/0d/7a/9b0d7a19-2e11-e2c5-2a18-3fa7c92f0d86/mzaf_1883375266445551498.plus.aac.p.m4a',answers:['T-Pain','Usher','Chris Brown','Ne-Yo'],correct:1},
+  {decade:'2000s',hint:'00s Nu Metal',song:'Numb — Linkin Park',preview_url:'https://audio-ssl.itunes.apple.com/itunes-assets/AudioPreview125/v4/75/3e/aa/753eaa37-e667-a4e5-8bb0-dfbf2de0a0de/mzaf_7744571283501578834.plus.aac.p.m4a',answers:['Green Day','Linkin Park','Fall Out Boy','Evanescence'],correct:1},
+  {decade:'2000s',hint:'00s Pop/Rock',song:'Since U Been Gone — Kelly Clarkson',preview_url:'https://audio-ssl.itunes.apple.com/itunes-assets/AudioPreview115/v4/21/e4/71/21e47171-78d2-e8b4-2e64-60b1e8e7b3bb/mzaf_14769820826965811858.plus.aac.p.m4a',answers:['Pink','Avril Lavigne','Kelly Clarkson','Paramore'],correct:2},
+  {decade:'2000s',hint:'00s Pop',song:'Toxic — Britney Spears',preview_url:'https://audio-ssl.itunes.apple.com/itunes-assets/AudioPreview125/v4/ac/7c/d0/ac7cd0ef-e8e0-6fec-e10b-f88dae2a14e3/mzaf_3688413476543817836.plus.aac.p.m4a',answers:['Britney Spears','Christina Aguilera','Beyonce','Rihanna'],correct:0},
+  {decade:'2000s',hint:'00s Emo',song:'Welcome To The Black Parade — MCR',preview_url:'https://audio-ssl.itunes.apple.com/itunes-assets/AudioPreview125/v4/de/4d/57/de4d5730-0e08-3428-f8d3-4b62a40ae3ed/mzaf_14684474462855870226.plus.aac.p.m4a',answers:['Fall Out Boy','My Chemical Romance','Panic At The Disco','Paramore'],correct:1},
+  {decade:'2000s',hint:'00s R&B/Pop',song:'Umbrella — Rihanna',preview_url:'https://audio-ssl.itunes.apple.com/itunes-assets/AudioPreview125/v4/4f/03/08/4f030830-3d27-ceca-1e15-a3bb7f7a0f14/mzaf_8726499073527720628.plus.aac.p.m4a',answers:['Beyonce','Rihanna','Alicia Keys','Ciara'],correct:1},
+  {decade:'2010s',hint:'10s Soul/Pop',song:'Rolling In The Deep — Adele',preview_url:'https://audio-ssl.itunes.apple.com/itunes-assets/AudioPreview115/v4/02/b7/dc/02b7dc16-c4dc-1ad2-6a23-8b7e5a40b93c/mzaf_2001434462813951453.plus.aac.p.m4a',answers:['Amy Winehouse','Duffy','Adele','Paloma Faith'],correct:2},
+  {decade:'2010s',hint:'10s Pop/R&B',song:'Blurred Lines — Robin Thicke',preview_url:'https://audio-ssl.itunes.apple.com/itunes-assets/AudioPreview125/v4/79/9a/14/799a14e6-c40f-23e0-c72b-25d00e234a2e/mzaf_5832093561024521186.plus.aac.p.m4a',answers:['Bruno Mars','Justin Timberlake','Robin Thicke','Pharrell'],correct:2},
+  {decade:'2010s',hint:'10s Country/Rap',song:'Old Town Road — Lil Nas X',preview_url:'https://audio-ssl.itunes.apple.com/itunes-assets/AudioPreview125/v4/bd/73/c0/bd73c0d5-5e6e-88ac-1c5e-f94a06e6e1ea/mzaf_13185244757085303348.plus.aac.p.m4a',answers:['Post Malone','Lil Nas X','Travis Scott','21 Savage'],correct:1},
+  {decade:'2010s',hint:'10s Pop',song:'Shape of You — Ed Sheeran',preview_url:'https://audio-ssl.itunes.apple.com/itunes-assets/AudioPreview125/v4/86/43/14/864314ab-b1e4-0fa6-a8f3-5d1eb4714b28/mzaf_15872487278427073327.plus.aac.p.m4a',answers:['Ed Sheeran','Sam Smith','Charlie Puth','Shawn Mendes'],correct:0},
+  {decade:'2010s',hint:'10s Pop',song:'Uptown Funk — Mark Ronson ft Bruno Mars',preview_url:'https://audio-ssl.itunes.apple.com/itunes-assets/AudioPreview125/v4/89/ca/cd/89cacd79-3f8d-8ab0-8b91-bff5bcc0d4e6/mzaf_17060030038734483456.plus.aac.p.m4a',answers:['Bruno Mars','Mark Ronson ft Bruno Mars','Justin Timberlake','Pharrell Williams'],correct:1},
+  {decade:'2010s',hint:'10s Indie Pop',song:'Royals — Lorde',preview_url:'https://audio-ssl.itunes.apple.com/itunes-assets/AudioPreview115/v4/a2/8d/5d/a28d5d7b-b6f7-db2e-68eb-6b30b26e1ee4/mzaf_2990895827481965124.plus.aac.p.m4a',answers:['Lorde','Lana Del Rey','Halsey','Billie Eilish'],correct:0},
+  {decade:'2010s',hint:'10s Hip-Hop',song:"HUMBLE. — Kendrick Lamar",preview_url:'https://audio-ssl.itunes.apple.com/itunes-assets/AudioPreview125/v4/99/49/61/994961b4-11b0-4e71-eed5-dbfacab19d29/mzaf_15640748847484477610.plus.aac.p.m4a',answers:['Drake','Kendrick Lamar','J. Cole','Travis Scott'],correct:1},
+  {decade:'2010s',hint:'10s Pop',song:'Shake It Off — Taylor Swift',preview_url:'https://audio-ssl.itunes.apple.com/itunes-assets/AudioPreview115/v4/7b/bd/c1/7bbdc182-2b6e-e23b-45aa-5b08ede432a8/mzaf_7468107512413855098.plus.aac.p.m4a',answers:['Katy Perry','Taylor Swift','Selena Gomez','Demi Lovato'],correct:1},
+  {decade:'2020s',hint:'20s Pop',song:"drivers license — Olivia Rodrigo",preview_url:'https://audio-ssl.itunes.apple.com/itunes-assets/AudioPreview115/v4/ca/6f/b0/ca6fb07e-f76d-6bb8-7b12-7db3f4e09b6a/mzaf_1556417001474701553.plus.aac.p.m4a',answers:['Doja Cat','Sabrina Carpenter','Olivia Rodrigo','Billie Eilish'],correct:2},
+  {decade:'2020s',hint:'20s Pop',song:'As It Was — Harry Styles',preview_url:'https://audio-ssl.itunes.apple.com/itunes-assets/AudioPreview122/v4/5e/8c/f0/5e8cf0f1-2d55-1a17-b9ad-dc9cd0fe6bb5/mzaf_13001676588061028018.plus.aac.p.m4a',answers:['Ed Sheeran','Harry Styles','Sam Smith','Shawn Mendes'],correct:1},
+  {decade:'2020s',hint:'20s Pop',song:'Anti-Hero — Taylor Swift',preview_url:'https://audio-ssl.itunes.apple.com/itunes-assets/AudioPreview122/v4/9d/6d/7b/9d6d7b77-b021-e91f-0bf4-9ddef1c2b4e8/mzaf_6309702146685252965.plus.aac.p.m4a',answers:['Reputation','Folklore','Midnights','Lover'],correct:2},
+  {decade:'2020s',hint:'20s Hip-Hop',song:'Blinding Lights — The Weeknd',preview_url:'https://audio-ssl.itunes.apple.com/itunes-assets/AudioPreview115/v4/04/7c/f9/047cf977-5a7a-c2d8-aef3-7bfbf4ac3dda/mzaf_7427475063479263671.plus.aac.p.m4a',answers:['Drake','The Weeknd','Post Malone','Future'],correct:1},
+  {decade:'2020s',hint:'20s Pop',song:'Levitating — Dua Lipa',preview_url:'https://audio-ssl.itunes.apple.com/itunes-assets/AudioPreview115/v4/bc/2f/7b/bc2f7b0d-25c7-1b8e-a1e5-d43b0e0a71c0/mzaf_1705614975474803416.plus.aac.p.m4a',answers:['Dua Lipa','Ariana Grande','Cardi B','Doja Cat'],correct:0},
+  {decade:'2020s',hint:'20s R&B',song:'Good 4 U — Olivia Rodrigo',preview_url:'https://audio-ssl.itunes.apple.com/itunes-assets/AudioPreview115/v4/1e/5f/d0/1e5fd079-cc16-9ca0-f2ab-e9f8bafcfc56/mzaf_9060274688682823940.plus.aac.p.m4a',answers:['Olivia Rodrigo','Doja Cat','Billie Eilish','Ariana Grande'],correct:0},
+];
+
+/* ══════════════════════════════════════════
+   ROUND 2 — Musician photos (50 artists)
+   Wikimedia Commons — CC licensed, hotlinking allowed
+   Each has: img (URL), artist, wrong answers (3), decade hint
+══════════════════════════════════════════ */
+const R2_POOL = [
+  {hint:'70s–80s Rock Legend',img:'https://wsrv.nl/?url=https%3A%2F%2Fupload.wikimedia.org%2Fwikipedia%2Fcommons%2Fthumb%2Fb%2Fbe%2FFreddie_Mercury_performing_in_New_Haven_1977.jpg%2F440px-Freddie_Mercury_performing_in_New_Haven_1977.jpg&w=400&h=400&fit=cover&a=top',answers:['Mick Jagger','Freddie Mercury','David Bowie','Elton John'],correct:1},
+  {hint:'70s–80s Glam Rock',img:'https://wsrv.nl/?url=https%3A%2F%2Fupload.wikimedia.org%2Fwikipedia%2Fcommons%2Fthumb%2Fb%2Fb7%2FDavid_Bowie_-_Beat_Club_1973.jpg%2F440px-David_Bowie_-_Beat_Club_1973.jpg&w=400&h=400&fit=cover&a=top',answers:['Lou Reed','Iggy Pop','David Bowie','Bryan Ferry'],correct:2},
+  {hint:'80s–90s Pop Icon',img:'https://wsrv.nl/?url=https%3A%2F%2Fupload.wikimedia.org%2Fwikipedia%2Fcommons%2Fthumb%2Fa%2Fa4%2FMichael_Jackson_1984.jpg%2F440px-Michael_Jackson_1984.jpg&w=400&h=400&fit=cover&a=top',answers:['Prince','Michael Jackson','Whitney Houston','Janet Jackson'],correct:1},
+  {hint:'70s–80s Classic Rock',img:'https://wsrv.nl/?url=https%3A%2F%2Fupload.wikimedia.org%2Fwikipedia%2Fcommons%2Fthumb%2Fd%2Fd1%2FMick_Jagger_by_Dina_Regine.jpg%2F440px-Mick_Jagger_by_Dina_Regine.jpg&w=400&h=400&fit=cover&a=top',answers:['Keith Richards','Mick Jagger','Rod Stewart','Roger Daltrey'],correct:1},
+  {hint:'70s–80s British Rock',img:'https://wsrv.nl/?url=https%3A%2F%2Fupload.wikimedia.org%2Fwikipedia%2Fcommons%2Fthumb%2F5%2F5e%2FElton_John_in_Sweden_1975.jpg%2F440px-Elton_John_in_Sweden_1975.jpg&w=400&h=400&fit=cover&a=top',answers:['Elton John','Billy Joel','Rod Stewart','Barry Manilow'],correct:0},
+  {hint:'80s Pop Queen',img:'https://wsrv.nl/?url=https%3A%2F%2Fupload.wikimedia.org%2Fwikipedia%2Fcommons%2Fthumb%2F2%2F26%2FMadonna_Lucky_Star.jpg%2F440px-Madonna_Lucky_Star.jpg&w=400&h=400&fit=cover&a=top',answers:['Cyndi Lauper','Madonna','Whitney Houston','Janet Jackson'],correct:1},
+  {hint:'90s Grunge Icon',img:'https://wsrv.nl/?url=https%3A%2F%2Fupload.wikimedia.org%2Fwikipedia%2Fcommons%2Fthumb%2Fb%2Fb3%2FKurt_Cobain_in_Utero_edit.jpg%2F440px-Kurt_Cobain_in_Utero_edit.jpg&w=400&h=400&fit=cover&a=top',answers:['Eddie Vedder','Kurt Cobain','Chris Cornell','Layne Staley'],correct:1},
+  {hint:'90s–00s Hip-Hop',img:'https://wsrv.nl/?url=https%3A%2F%2Fupload.wikimedia.org%2Fwikipedia%2Fcommons%2Fthumb%2Fa%2Fa5%2FSnoop_Dogg_2019_by_Glenn_Francis.jpg%2F440px-Snoop_Dogg_2019_by_Glenn_Francis.jpg&w=400&h=400&fit=cover&a=top',answers:['Ice Cube','Dr. Dre','Snoop Dogg','Warren G'],correct:2},
+  {hint:'00s–10s Pop',img:'https://wsrv.nl/?url=https%3A%2F%2Fupload.wikimedia.org%2Fwikipedia%2Fcommons%2Fthumb%2F1%2F1e%2FBeyonc%25C3%25A9_at_the_White_House_2009.jpg%2F440px-Beyonc%25C3%25A9_at_the_White_House_2009.jpg&w=400&h=400&fit=cover&a=top',answers:['Rihanna','Beyonce','Alicia Keys','Ciara'],correct:1},
+  {hint:'00s–10s R&B',img:'https://wsrv.nl/?url=https%3A%2F%2Fupload.wikimedia.org%2Fwikipedia%2Fcommons%2Fthumb%2F3%2F3e%2FRihanna_-_777_Tour_-_7Countries7Days_-_A380_%25283%2529_%2528cropped%2529.jpg%2F440px-Rihanna_-_777_Tour_-_7Countries7Days_-_A380_%25283%2529_%2528cropped%2529.jpg&w=400&h=400&fit=cover&a=top',answers:['Beyonce','Rihanna','Nicki Minaj','Ciara'],correct:1},
+  {hint:'10s–20s Pop',img:'https://wsrv.nl/?url=https%3A%2F%2Fupload.wikimedia.org%2Fwikipedia%2Fcommons%2Fthumb%2Fb%2Fb5%2F191125_Taylor_Swift_at_the_2019_American_Music_Awards_%2528cropped%2529.jpg%2F440px-191125_Taylor_Swift_at_the_2019_American_Music_Awards_%2528cropped%2529.jpg&w=400&h=400&fit=cover&a=top',answers:['Ariana Grande','Katy Perry','Taylor Swift','Selena Gomez'],correct:2},
+  {hint:'10s Pop',img:'https://wsrv.nl/?url=https%3A%2F%2Fupload.wikimedia.org%2Fwikipedia%2Fcommons%2Fthumb%2F1%2F17%2FEd_Sheeran_-_Multiply_Tour_2015.jpg%2F440px-Ed_Sheeran_-_Multiply_Tour_2015.jpg&w=400&h=400&fit=cover&a=top',answers:['Sam Smith','Ed Sheeran','Harry Styles','Shawn Mendes'],correct:1},
+  {hint:'10s–20s R&B',img:'https://wsrv.nl/?url=https%3A%2F%2Fupload.wikimedia.org%2Fwikipedia%2Fcommons%2Fthumb%2F3%2F3c%2FThe_Weeknd_2013.jpg%2F440px-The_Weeknd_2013.jpg&w=400&h=400&fit=cover&a=top',answers:['Drake','Future','The Weeknd','Post Malone'],correct:2},
+  {hint:'10s Hip-Hop',img:'https://wsrv.nl/?url=https%3A%2F%2Fupload.wikimedia.org%2Fwikipedia%2Fcommons%2Fthumb%2F9%2F98%2FKendrick_Lamar_-_Coachella_2023_%2528cropped%2529.jpg%2F440px-Kendrick_Lamar_-_Coachella_2023_%2528cropped%2529.jpg&w=400&h=400&fit=cover&a=top',answers:['J. Cole','Drake','Kendrick Lamar','Travis Scott'],correct:2},
+  {hint:'20s Pop',img:'https://wsrv.nl/?url=https%3A%2F%2Fupload.wikimedia.org%2Fwikipedia%2Fcommons%2Fthumb%2F4%2F45%2FBillie_Eilish_at_the_2019_Glastonbury_Festival_%2528cropped%2529.jpg%2F440px-Billie_Eilish_at_the_2019_Glastonbury_Festival_%2528cropped%2529.jpg&w=400&h=400&fit=cover&a=top',answers:['Olivia Rodrigo','Doja Cat','Billie Eilish','Ariana Grande'],correct:2},
+  {hint:'10s–20s Pop',img:'https://wsrv.nl/?url=https%3A%2F%2Fupload.wikimedia.org%2Fwikipedia%2Fcommons%2Fthumb%2Fe%2Fe3%2FDua_Lipa_2018.jpg%2F440px-Dua_Lipa_2018.jpg&w=400&h=400&fit=cover&a=top',answers:['Dua Lipa','Ariana Grande','Lizzo','Doja Cat'],correct:0},
+  {hint:'10s–20s Hip-Hop',img:'https://wsrv.nl/?url=https%3A%2F%2Fupload.wikimedia.org%2Fwikipedia%2Fcommons%2Fthumb%2F2%2F21%2FDrake_July_2016.jpg%2F440px-Drake_July_2016.jpg&w=400&h=400&fit=cover&a=top',answers:['Drake','Kanye West','Jay-Z','Travis Scott'],correct:0},
+  {hint:'80s–90s R&B',img:'https://wsrv.nl/?url=https%3A%2F%2Fupload.wikimedia.org%2Fwikipedia%2Fcommons%2Fthumb%2Fe%2Fef%2FWhitney_Houston_Welcome_Home_Heroes_1_cropped.jpg%2F440px-Whitney_Houston_Welcome_Home_Heroes_1_cropped.jpg&w=400&h=400&fit=cover&a=top',answers:['Janet Jackson','Mariah Carey','Whitney Houston','Anita Baker'],correct:2},
+  {hint:'70s Reggae',img:'https://wsrv.nl/?url=https%3A%2F%2Fupload.wikimedia.org%2Fwikipedia%2Fcommons%2Fthumb%2Fa%2Fac%2FBob-Marley.jpg%2F440px-Bob-Marley.jpg&w=400&h=400&fit=cover&a=top',answers:['Peter Tosh','Jimmy Cliff','Bob Marley','Toots Hibbert'],correct:2},
+  {hint:'80s Rock',img:'https://wsrv.nl/?url=https%3A%2F%2Fupload.wikimedia.org%2Fwikipedia%2Fcommons%2Fthumb%2F7%2F7a%2FBono_2009_in_black_%2526_white_%2528cropped%2529.jpg%2F440px-Bono_2009_in_black_%2526_white_%2528cropped%2529.jpg&w=400&h=400&fit=cover&a=top',answers:['Bono','Sting','Chris Martin','Brandon Flowers'],correct:0},
+  {hint:'70s–80s New Wave',img:'https://wsrv.nl/?url=https%3A%2F%2Fupload.wikimedia.org%2Fwikipedia%2Fcommons%2Fthumb%2F7%2F7e%2FBlondie_2011.jpg%2F440px-Blondie_2011.jpg&w=400&h=400&fit=cover&a=top',answers:['Pat Benatar','Chrissie Hynde','Debbie Harry','Cyndi Lauper'],correct:2},
+  {hint:'90s–00s R&B',img:'https://wsrv.nl/?url=https%3A%2F%2Fupload.wikimedia.org%2Fwikipedia%2Fcommons%2Fthumb%2Fb%2Fb7%2FMariah_Carey_2019_%2528cropped%2529.jpg%2F440px-Mariah_Carey_2019_%2528cropped%2529.jpg&w=400&h=400&fit=cover&a=top',answers:['Celine Dion','Mariah Carey','Whitney Houston','Janet Jackson'],correct:1},
+  {hint:'00s Hip-Hop',img:'https://wsrv.nl/?url=https%3A%2F%2Fupload.wikimedia.org%2Fwikipedia%2Fcommons%2Fthumb%2Fe%2Fe0%2FKanye_West_at_the_2009_Tribeca_Film_Festival.jpg%2F440px-Kanye_West_at_the_2009_Tribeca_Film_Festival.jpg&w=400&h=400&fit=cover&a=top',answers:['Jay-Z','Kanye West','Lil Wayne','T.I.'],correct:1},
+  {hint:'00s–10s Pop',img:'https://wsrv.nl/?url=https%3A%2F%2Fupload.wikimedia.org%2Fwikipedia%2Fcommons%2Fthumb%2F6%2F6e%2FKaty_Perry_-_Witness_The_Tour.jpg%2F440px-Katy_Perry_-_Witness_The_Tour.jpg&w=400&h=400&fit=cover&a=top',answers:['Lady Gaga','Katy Perry','Pink','Kesha'],correct:1},
+  {hint:'00s–10s Pop',img:'https://wsrv.nl/?url=https%3A%2F%2Fupload.wikimedia.org%2Fwikipedia%2Fcommons%2Fthumb%2F8%2F89%2FLady_Gaga_at_VMA%252C_2013_%2528crop%2529.jpg%2F440px-Lady_Gaga_at_VMA%252C_2013_%2528crop%2529.jpg&w=400&h=400&fit=cover&a=top',answers:['Lady Gaga','Kesha','Katy Perry','Miley Cyrus'],correct:0},
+  {hint:'10s Pop',img:'https://wsrv.nl/?url=https%3A%2F%2Fupload.wikimedia.org%2Fwikipedia%2Fcommons%2Fthumb%2F6%2F6d%2FHarry_Styles_in_Cologne_2018_%2528cropped%2529.jpg%2F440px-Harry_Styles_in_Cologne_2018_%2528cropped%2529.jpg&w=400&h=400&fit=cover&a=top',answers:['Shawn Mendes','Harry Styles','Niall Horan','Zayn'],correct:1},
+  {hint:'20s Pop',img:'https://wsrv.nl/?url=https%3A%2F%2Fupload.wikimedia.org%2Fwikipedia%2Fcommons%2Fthumb%2F1%2F1c%2FOlivia_Rodrigo_2022_%2528cropped%2529.jpg%2F440px-Olivia_Rodrigo_2022_%2528cropped%2529.jpg&w=400&h=400&fit=cover&a=top',answers:['Sabrina Carpenter','Olivia Rodrigo','Doja Cat','Ariana Grande'],correct:1},
+  {hint:'10s–20s Hip-Hop',img:'https://wsrv.nl/?url=https%3A%2F%2Fupload.wikimedia.org%2Fwikipedia%2Fcommons%2Fthumb%2F3%2F3b%2FPost_Malone_2019_%2528cropped%2529.jpg%2F440px-Post_Malone_2019_%2528cropped%2529.jpg&w=400&h=400&fit=cover&a=top',answers:['Lil Uzi Vert','Travis Scott','Post Malone','Juice WRLD'],correct:2},
+  {hint:'10s Pop',img:'https://wsrv.nl/?url=https%3A%2F%2Fupload.wikimedia.org%2Fwikipedia%2Fcommons%2Fthumb%2Fb%2Fb1%2FAdele_2016_%2528cropped%2529.jpg%2F440px-Adele_2016_%2528cropped%2529.jpg&w=400&h=400&fit=cover&a=top',answers:['Adele','Duffy','Amy Winehouse','Paloma Faith'],correct:0},
+];
+
+/* ══════════════════════════════════════════
+   ROUND 3 — Lyric clues (50 questions)
+   Paraphrased descriptions — NOT actual lyrics (copyright safe)
+   Each has: clue, song, artist, answers (4 artists), correct
+   Points: 1 for artist, 1 for song, bonus for being first correct
+══════════════════════════════════════════ */
+const R3_POOL = [
+  {clue:"A singer describes looking in the mirror and hating the person looking back. They call themselves the problem in every relationship and wonder why they can't go anywhere without bumping into things they hate about themselves.",song:'Anti-Hero',answers:['Harry Styles','Taylor Swift','Olivia Rodrigo','Billie Eilish'],correct:1},
+  {clue:"Someone sings about a romance that ended but they still have all the memories. They describe driving past old places and seeing the other person everywhere, unable to escape the ghost of the relationship.",song:'drivers license',answers:['Doja Cat','Ariana Grande','Olivia Rodrigo','Sabrina Carpenter'],correct:2},
+  {clue:"A man sings about needing a woman like he needs air to breathe. The chorus bursts open with the idea that without her, he is simply going under — falling apart like a crumbling dam.",song:'Crazy In Love',answers:['Rihanna','Beyonce','Alicia Keys','Mariah Carey'],correct:1},
+  {clue:"The singer describes a deep, rolling sound that keeps pulling them back. They challenge someone who caused them pain, saying that even though they let them in, they could have had everything — but it all came tumbling down like fire.",song:'Rolling In The Deep',answers:['Amy Winehouse','Duffy','Adele','Joss Stone'],correct:2},
+  {clue:"A teenager in a small town talks about being left behind while everyone else moves on. They dream of a world out there with neon lights and something more, insisting they were born to run.",song:'Born To Run',answers:['Tom Petty','Bruce Springsteen','John Mellencamp','Bob Seger'],correct:1},
+  {clue:"Someone sings about a woman who walks in beauty, comparing her to the night sky. The chorus repeats a request to hold them close and never let go, describing skin like porcelain and eyes like stars.",song:'She Will Be Loved',answers:['Matchbox Twenty','Maroon 5','Train','One Republic'],correct:1},
+  {clue:"A narrator walks through a rainy city at night completely alone. Every street corner is a reminder of a breakup. The song describes how even the broken street signs and empty bus stops feel like they belong to someone else now.",song:'Boulevard of Broken Dreams',answers:['My Chemical Romance','Linkin Park','Green Day','Fall Out Boy'],correct:2},
+  {clue:"The singer talks about waking up every morning and not recognizing their life. Fame, money and parties surround them but everything feels hollow and they just want to go back to who they were before.",song:'The Monster',answers:['Drake ft Eminem','Eminem ft Rihanna','Jay-Z ft Kanye','Kanye ft Kid Cudi'],correct:1},
+  {clue:"A couple faces impossible odds and has nothing except each other. They make a promise halfway through the song — if they can make it to morning, they can make it through anything. Based on love, not money or power.",song:"Livin On A Prayer",answers:['Journey','Bon Jovi','Foreigner','REO Speedwagon'],correct:1},
+  {clue:"Someone describes being told they are small, unimportant, and destined to fail. The song builds into a declaration that they are not going to shrink — they are going to take up space and be heard.",song:'Roar',answers:['Taylor Swift','Katy Perry','Pink','Kelly Clarkson'],correct:1},
+  {clue:"The narrator confesses to a life of crime and fast money. They ride through their city and see the lifestyle they built but also feel the weight of who they might hurt along the way. West Coast summer heat fills every line.",song:'California Love',answers:['Snoop Dogg','Ice Cube','2Pac','Biggie Smalls'],correct:2},
+  {clue:"A singer describes putting on a brave face every day while falling apart inside. They smile at strangers, go through the motions of work and life, but behind closed doors the sadness is overwhelming and no one sees it.",song:'Tears of a Clown',answers:['Smokey Robinson','Marvin Gaye','Stevie Wonder','Sam Cooke'],correct:0},
+  {clue:"Two people describe sneaking around, stealing moments together, and being completely obsessed with each other while the world goes about its business. The chorus has an infectious bounce and repeats a one-syllable affirmation over and over.",song:'Yeah',answers:['Chris Brown','Usher','Ne-Yo','T-Pain'],correct:1},
+  {clue:"Someone stands at a crossroads and decides to leave everything behind. The verses describe a dead-end town, a dead-end job and a relationship that went nowhere. The open road is the only answer.",song:"Take It Easy",answers:['The Eagles','Fleetwood Mac','America','Doobie Brothers'],correct:0},
+  {clue:"The narrator reflects on lost innocence and a summer that changed everything. They describe a group of friends who drifted apart, a season that ended too soon, and a longing to go back to simpler times when the world felt possible.",song:'Summer of 69',answers:['Bryan Adams','Tom Petty','Bruce Springsteen','John Mellencamp'],correct:0},
+  {clue:"A very fast, complex verse-heavy song where the MC lists achievements, dares rivals to match them, and commands listeners to sit down and be quiet. The title is a single commanding word shouted at the listener.",song:'HUMBLE.',answers:['Drake','Kendrick Lamar','J. Cole','Travis Scott'],correct:1},
+  {clue:"Someone describes being trapped in a routine of waking up, working, and going home while life passes them by. The chorus explodes into a plea to break free from ordinary life and do something that matters before it is too late.",song:'Shake It Off',answers:['Katy Perry','Taylor Swift','Demi Lovato','Selena Gomez'],correct:1},
+  {clue:"The singer climbs to the top of a structure and looks out over the city. The verses describe years of hard work and sacrifice, the chorus promises that now there is nowhere to go but up, and the bridge features a key change that lifts the whole song.",song:'Empire State of Mind',answers:['Jay-Z ft Alicia Keys','Kanye ft Jay-Z','Jay-Z ft Beyonce','50 Cent ft Jay-Z'],correct:0},
+  {clue:"A song where someone describes being in a perfect relationship that looks great from the outside but feels completely empty on the inside. Both people go through the motions while the real feelings have long since disappeared.",song:"Don't Speak",answers:["No Doubt","Alanis Morissette","Sheryl Crow","Jewel"],correct:0},
+  {clue:"A boy sings about a girl who changed his entire world just by walking into a room. Every detail — her laugh, the way she talks, the perfume she wears — is described with overwhelming adoration. The production is warm and summery.",song:'Shape of You',answers:['Charlie Puth','Ed Sheeran','Sam Smith','Shawn Mendes'],correct:1},
+  {clue:"The narrator walks through a city alone at three in the morning, completely heartbroken. Rain falls on empty streets and neon lights reflect in puddles. The melody is slow, aching, and the chorus doubles in intensity on the second pass.",song:'Fix You',answers:['Radiohead','Coldplay','U2','Muse'],correct:1},
+  {clue:"Someone wakes up from a long sleep and realizes the world has moved on without them. Old friends have new lives, old places look different, and the person they used to be feels like a stranger. The chorus has a haunting falsetto.",song:'Black Hole Sun',answers:['Alice In Chains','Soundgarden','Pearl Jam','Stone Temple Pilots'],correct:1},
+  {clue:"A declaration of independence from a toxic relationship. The narrator lists all the things the ex used to do — the lying, the manipulation, the control — and ends each verse with a calm, powerful statement that they are done.",song:'Since U Been Gone',answers:['Pink','Avril Lavigne','Kelly Clarkson','Paramore'],correct:2},
+  {clue:"The singer describes a childhood spent in poverty, living in a bad neighborhood, watching crime and violence up close. Despite everything, they made it out. The chorus is a defiant celebration of survival and gratitude.",song:"Gangsta's Paradise",answers:['Coolio','Ice Cube','Tupac','Snoop Dogg'],correct:0},
+  {clue:"An anthem about not caring what anyone thinks. The singer describes getting knocked down by gossip and critics but getting right back up. The chorus is an infectious command to just keep dancing and ignore the noise.",song:'Roar',answers:['Katy Perry','Pink','Kelly Clarkson','Avril Lavigne'],correct:0},
+  {clue:"Two old friends run into each other years after drifting apart. The song describes what they each became, how life went differently than expected, and ends with a bittersweet hug and a walk down memory lane set to a gentle acoustic guitar.",song:'The House That Built Me',answers:['Miranda Lambert','Carrie Underwood','Dolly Parton','Reba McEntire'],correct:0},
+  {clue:"A woman sings about a man who is charming, irresistible and impossible to stay away from — even though she knows he is trouble. The metaphors compare him to a hurricane, a wildfire and a drug all at once.",song:'Toxic',answers:['Rihanna','Britney Spears','Christina Aguilera','Beyonce'],correct:1},
+  {clue:"The narrator stands in the wreckage of a broken city, searching through rubble for something worth saving. The song builds to a chorus about being lost but not giving up. The imagery is post-apocalyptic but the emotion is deeply personal.",song:'Welcome To The Black Parade',answers:['My Chemical Romance','Fall Out Boy','Panic At The Disco','Paramore'],correct:0},
+  {clue:"Someone apologizes over and over for something they did, knowing the apology is not enough. The verses describe the specific moments where things went wrong and the chorus admits that all they can do now is say sorry and hope it matters.",song:'Sorry',answers:['Ed Sheeran','Justin Bieber','Sam Smith','Charlie Puth'],correct:1},
+  {clue:"A country-rap hybrid where the narrator rides horses down a dirt road, wearing boots and a hat, and counts all the things that make their rural life worth living. The beat is infectious and the hook is impossible to forget.",song:'Old Town Road',answers:['Post Malone','Lil Nas X','Travis Scott','Morgan Wallen'],correct:1},
+];
+
+/* ─── UTILS ─── */
+const $=id=>document.getElementById(id);
+const show=id=>$(id).classList.remove('hidden');
+const hide=id=>$(id).classList.add('hidden');
+const shuffle=a=>[...a].sort(()=>Math.random()-.5);
+const genCode=()=>String(Math.floor(1000+Math.random()*9000));
+function pick(pool,n){return shuffle([...pool]).slice(0,n);}
+
+function setStatus(s,t){show('sbar');$('sdot').className='sdot '+s;$('stxt').textContent=t;}
+function copyLink(){
+  const url=location.href.split('?')[0];
+  navigator.clipboard.writeText(url).then(()=>{
+    $('copy-btn').textContent='Copied!';$('copy-btn').style.background='var(--green)';
+    setTimeout(()=>{$('copy-btn').textContent='Copy';$('copy-btn').style.background='var(--gold)';},2000);
+  }).catch(()=>{$('copy-btn').textContent='Select above';});
+}
+
+/* ─── ABLY ─── */
+let ch=null;
+function connectAbly(room,onReady){
+  setStatus('wait','Connecting...');
+  const s=document.createElement('script');
+  s.src='https://cdn.ably.com/lib/ably.min-2.js';
+  s.onerror=()=>setStatus('err','Could not load Ably');
+  s.onload=()=>{
+    const client=new Ably.Realtime({key:ABLY_KEY,clientId:'u'+Math.random().toString(36).slice(2)});
+    client.connection.on('connected',()=>{setStatus('ok','Connected · room '+room);ch=client.channels.get('rr6-'+room);onReady();});
+    client.connection.on('disconnected',()=>setStatus('err','Disconnected...'));
+    client.connection.on('failed',()=>setStatus('err','Connection failed'));
+  };
+  document.head.appendChild(s);
+}
+const pub=(e,d)=>ch&&ch.publish(e,d);
+const sub=(e,fn)=>ch&&ch.subscribe(e,m=>fn(m.data));
+
+/* Audio unlock — browsers block autoplay until a user tap has occurred */
+let audioUnlocked = false;
+function unlockAudio() {
+  if (audioUnlocked) return;
+  try {
+    const ctx = new (window.AudioContext || window.webkitAudioContext)();
+    const buf = ctx.createBuffer(1, 1, 22050);
+    const src = ctx.createBufferSource();
+    src.buffer = buf; src.connect(ctx.destination); src.start(0);
+  } catch(e) {}
+  audioUnlocked = true;
+  hide('audio-unlock-overlay');
+  // If a clip is waiting to play, play it now
+  if (hAudio && !hPlaying) {
+    hAudio.play().then(() => {
+      hPlaying = true;
+      $('h-play-ic').classList.add('hidden');
+      $('h-pause-ic').classList.remove('hidden');
+    }).catch(() => {});
+  }
+}
+function startHost() { hide('landing'); show('host'); initHost(); }
+function startPlayer(){hide('landing');show('player');initPlayer();}
+
+/* ════════════════════════════════════════
+   HOST STATE
+════════════════════════════════════════ */
+let roomCode='',hPlayers={};
+// Rounds structure: [{type:'r1'|'r2'|'r3', questions:[...]}, ...]
+let hRounds=[], hRound=0, hCurrent=0;
+let hAnswered=false, hTimerID=null, hTimeLeft=15;
+let hAudio=null, hPlaying=false;
+let hFirstCorrect=null; // player id who answered first correctly this question
+
+function curQ(){return hRounds[hRound].questions[hCurrent];}
+function curType(){return hRounds[hRound].type;}
+function totalQInRound(){return hRounds[hRound].questions.length;}
+
+function initHost(){
+  roomCode=genCode();
+  $('room-code-num').textContent=roomCode;
+  $('url-box').textContent=location.href.split('?')[0];
+  connectAbly(roomCode,()=>{
+    $('conn-status').textContent='Ready! Waiting for players...';
+    $('conn-status').style.color='var(--green)';
+    sub('join',d=>{
+      if(hPlayers[d.id]){pub('joined',{id:d.id,color:hPlayers[d.id].color});return;}
+      const idx=Object.keys(hPlayers).length;
+      hPlayers[d.id]={name:d.name,color:COLORS[idx%COLORS.length],score:0,streak:0,maxStreak:0,choice:-1,buzzed:false};
+      renderLobby();
+      pub('joined',{id:d.id,color:hPlayers[d.id].color});
+      const n=Object.keys(hPlayers).length;
+      $('start-btn').disabled=false;
+      $('start-btn').textContent='Start Game — '+n+' player'+(n!==1?'s':'');
+    });
+    sub('answer',d=>{
+      if(hAnswered)return;
+      const p=hPlayers[d.id];
+      if(!p||p.buzzed)return;
+      p.buzzed=true; p.choice=d.choice;
+      const q=curQ();
+      const correct=(d.choice===q.correct);
+      if(correct){
+        let pts=1; // base 1 pt per round 2&3
+        if(curType()==='r1') pts=10+(hTimeLeft>10?5:hTimeLeft>5?2:0);
+        if(hFirstCorrect===null){
+          hFirstCorrect=d.id;
+          pts+=(curType()==='r1'?0:1); // bonus +1 for first correct in r2/r3
+          p.score+=pts;
+          p.firstThisQ=true;
+        } else {
+          p.score+=pts;
+          p.firstThisQ=false;
+        }
+        p.streak++;p.maxStreak=Math.max(p.maxStreak,p.streak);
+      } else {
+        p.streak=0; p.firstThisQ=false;
+      }
+      renderScoreCards();
+      if(Object.values(hPlayers).every(p=>p.buzzed)){clearInterval(hTimerID);revealHost();}
+    });
+  });
+}
+
+function renderLobby(){
+  const list=$('player-list');list.innerHTML='';
+  Object.values(hPlayers).forEach(p=>{
+    const c=document.createElement('div');c.className='player-chip';
+    c.innerHTML='<div class="dot" style="background:'+p.color+'"></div><span class="chip-name">'+p.name+'</span><span class="chip-badge">Ready</span>';
+    list.appendChild(c);
+  });
+}
+
+function hostStart(){ unlockAudio();
+  // Build rounds fresh each game
+  hRounds=[
+    {type:'r1', questions: pick(R1_POOL,30)},
+    {type:'r2', questions: pick(R2_POOL,Math.min(25,R2_POOL.length))},
+    {type:'r3', questions: pick(R3_POOL,Math.min(25,R3_POOL.length))},
+  ];
+  hRound=0; hCurrent=0;
+  Object.values(hPlayers).forEach(p=>{p.score=0;p.streak=0;p.maxStreak=0;});
+  hide('lobby'); show('hgame');
+  broadcastRoundStart();
+  renderHostQ();
+}
+
+function broadcastRoundStart(){
+  const r=hRounds[hRound];
+  pub('round-start',{
+    round:hRound,
+    type:r.type,
+    qs:r.questions.map((q,i)=>({i,answers:q.answers,correct:q.correct,hint:q.hint||'',clue:q.clue||'',song:q.song||'',img:q.img||''}))
+  });
+}
+
+function renderHostQ(){
+  hAnswered=false; hTimeLeft=15; hFirstCorrect=null;
+  clearInterval(hTimerID);
+  if(hAudio){try{hAudio.pause();}catch(e){}hAudio=null;}hPlaying=false;
+  Object.values(hPlayers).forEach(p=>{p.buzzed=false;p.choice=-1;p.firstThisQ=false;});
+
+  const q=curQ(), type=curType(), total=totalQInRound();
+  const roundNum=hRound+1;
+  const roundTitles=['Round 1 — Audio Clips','Round 2 — Who Is This?','Round 3 — Lyric Clues'];
+  const roundDescs=['Listen and guess the artist','Spot the musician from the photo','Guess the song from the clue'];
+  const timerSec=(type==='r1')?15:40;
+  hTimeLeft=timerSec;
+
+  $('h-round-pill').textContent='R'+roundNum;
+  $('h-round-title').textContent=roundTitles[hRound];
+  $('h-round-desc').textContent=roundDescs[hRound];
+  $('q-ctr').textContent='Q '+(hCurrent+1)+' / '+total;
+  $('dec-tag').textContent=q.decade||q.hint||'';
+  $('prog-bar').style.width=Math.round((hCurrent/total)*100)+'%';
+  $('feedback').textContent='';$('feedback').className='feedback';
+  hide('next-btn');hide('song-reveal-txt');hide('reveal-btn');
+
+  // Show correct content panel
+  hide('r1-content');hide('r2-content');hide('r3-content');
+
+  if(type==='r1'){
+    show('r1-content');
+    $('h-hint').textContent=q.hint||'';
+    $('h-bar').style.width='0%';
+    $('h-play-ic').classList.remove('hidden');$('h-pause-ic').classList.add('hidden');
+    if(q.preview_url){
+      hAudio=new Audio(q.preview_url);
+      hAudio.ontimeupdate=()=>{if(hAudio.duration)$('h-bar').style.width=Math.min((hAudio.currentTime/hAudio.duration)*100,100)+'%';};
+      hAudio.onended=()=>{hPlaying=false;$('h-play-ic').classList.remove('hidden');$('h-pause-ic').classList.add('hidden');};
+      if(audioUnlocked){hAudio.play().then(()=>{hPlaying=true;$('h-play-ic').classList.add('hidden');$('h-pause-ic').classList.remove('hidden');}).catch(()=>{});}
+    }
+  } else if(type==='r2'){
+    show('r2-content');
+    const img=$('h-artist-img');
+    img.src=q.img||'';
+    img.className='artist-img img-blur'; // blurred until reveal
+    $('h-r2-hint').textContent=q.hint||'';
+  } else if(type==='r3'){
+    show('r3-content');
+    $('h-lyric-clue').textContent=q.clue||'';
+  }
+
+  // Answers
+  const ag=$('ans-grid');ag.innerHTML='';
+  q.answers.forEach((a,i)=>{
+    const d=document.createElement('div');d.className='ans-chip';d.id='ac'+i;
+    d.innerHTML='<span class="ltr">'+LTRS[i]+'</span>'+a;
+    ag.appendChild(d);
+  });
+
+  renderScoreCards();
+  startTimer(timerSec);
+  pub('question',{index:hCurrent,round:hRound,type});
+}
+
+function togglePlay(){
+  if(!hAudio)return;
+  if(hPlaying){hAudio.pause();hPlaying=false;$('h-play-ic').classList.remove('hidden');$('h-pause-ic').classList.add('hidden');}
+  else{if(audioUnlocked){hAudio.play().then(()=>{hPlaying=true;$('h-play-ic').classList.add('hidden');$('h-pause-ic').classList.remove('hidden');}).catch(()=>{});}}
+}
+
+function startTimer(sec){
+  updateRing(sec,sec);
+  hTimerID=setInterval(()=>{hTimeLeft--;updateRing(hTimeLeft,sec);if(hTimeLeft<=0){clearInterval(hTimerID);revealHost();}},1000);
+}
+
+function updateRing(v,max){
+  const circ=163.36, off=circ-(v/max)*circ;
+  $('t-circle').style.strokeDashoffset=off;$('t-num').textContent=v;
+  const hot=v<=5;$('t-circle').classList.toggle('hot',hot);$('t-num').classList.toggle('hot',hot);
+}
+
+function revealAnswer(){
+  const q=curQ(),type=curType();
+  if(type==='r2') $('h-artist-img').className='artist-img img-reveal';
+  const label=type==='r3'?'Song: '+q.song+' · Artist: '+q.answers[q.correct]:'Song: '+q.song;
+  $('song-reveal-txt').innerHTML='<strong>'+label+'</strong>';
+  show('song-reveal-txt');hide('reveal-btn');
+}
+
+function revealHost(){
+  hAnswered=true;
+  if(hAudio){try{hAudio.pause();}catch(e){}}
+  const q=curQ();
+  q.answers.forEach((_,i)=>{$('ac'+i).classList.add(i===q.correct?'cc':'cw');});
+  const winners=Object.values(hPlayers).filter(p=>p.choice===q.correct).map(p=>p.name);
+  const firstP=hFirstCorrect&&hPlayers[hFirstCorrect];
+  const fb=$('feedback');
+  if(!winners.length){fb.textContent="Nobody got it!";fb.classList.add('bad');}
+  else{
+    const msg=winners.join(', ')+' got it!'+(firstP?' '+firstP.name+' was first (+1 bonus)!':'');
+    fb.textContent=msg;fb.classList.add('good');
+  }
+  renderScoreCards();
+  const total=totalQInRound();
+  const isLastQ=hCurrent>=total-1;
+  const isLastRound=hRound>=hRounds.length-1;
+  $('next-btn').textContent=isLastQ?(isLastRound?'See Results':'Round Summary'):'Next Question';
+  show('next-btn');show('reveal-btn');
+  pub('reveal',{correct:q.correct,song:q.song||'',firstId:hFirstCorrect,scores:scorePayload()});
+}
+
+function scorePayload(){
+  const o={};Object.entries(hPlayers).forEach(([id,p])=>{o[id]={score:p.score,streak:p.streak};});return o;
+}
+
+function renderScoreCards(){
+  const row=$('score-row');row.innerHTML='';
+  const q=curQ();
+  Object.entries(hPlayers).sort((a,b)=>b[1].score-a[1].score).forEach(([id,p])=>{
+    const isFirst=id===hFirstCorrect&&p.buzzed&&p.choice===q.correct;
+    const c=document.createElement('div');
+    c.className='score-card'+(p.buzzed?(p.choice===q.correct?(isFirst?' sc-first':' sc-ok'):' sc-no'):'');
+    c.innerHTML='<div style="display:flex;align-items:center;gap:7px;margin-bottom:4px;"><div class="dot" style="background:'+p.color+'"></div><div class="sc-name">'+p.name+(isFirst?'<span class="first-badge">First!</span>':'')+'</div></div><div class="sc-pts">'+p.score+'</div><div class="sc-st '+(p.buzzed?'sc-l':'sc-w')+'">'+(p.buzzed?'answered':'waiting...')+'</div>';
+    row.appendChild(c);
+  });
+}
+
+function hostNext(){
+  const total=totalQInRound();
+  if(hCurrent<total-1){
+    hCurrent++;renderHostQ();
+  } else {
+    // End of round
+    if(hRound<hRounds.length-1){
+      showBetweenRounds();
+    } else {
+      hostEnd();
+    }
+  }
+}
+
+function showBetweenRounds(){
+  hide('hgame');show('hbetween');
+  const nextRoundNames=['Round 2: Who Is This?','Round 3: Lyric Clues'];
+  $('between-title').textContent='Round '+(hRound+1)+' Complete!';
+  $('between-subtitle').textContent='Up next — '+nextRoundNames[hRound];
+  const bs=$('between-scores');bs.innerHTML='';
+  Object.values(hPlayers).sort((a,b)=>b.score-a.score).forEach(p=>{
+    const c=document.createElement('div');c.className='bs-card';
+    c.innerHTML='<div class="dot" style="background:'+p.color+';margin:0 auto 6px;width:10px;height:10px;border-radius:50%;"></div><div class="bs-name">'+p.name+'</div><div class="bs-pts">'+p.score+'</div>';
+    bs.appendChild(c);
+  });
+  pub('between-rounds',{round:hRound,scores:scorePayload()});
+}
+
+function hostContinue(){
+  hRound++;hCurrent=0;
+  hide('hbetween');show('hgame');
+  broadcastRoundStart();
+  renderHostQ();
+}
+
+function hostEnd(){
+  pub('game-end',{scores:scorePayload()});
+  hide('hgame');show('hend');
+  const sorted=Object.values(hPlayers).sort((a,b)=>b.score-a.score);
+  const pod=$('podium');pod.innerHTML='';
+  const defs=[{cls:'p1',rk:'p-rank gold',lb:'1ST'},{cls:'p2',rk:'p-rank',lb:'2ND'},{cls:'p3',rk:'p-rank',lb:'3RD'}];
+  sorted.forEach((p,i)=>{
+    const d=defs[i]||{cls:'',rk:'p-rank',lb:(i+1)+'TH'};
+    const c=document.createElement('div');c.className='podium-card '+d.cls;
+    c.innerHTML='<div class="'+d.rk+'">'+d.lb+'</div><div class="dot" style="background:'+p.color+';margin:0 auto 8px;width:12px;height:12px;"></div><div class="p-name">'+p.name+'</div><div class="p-pts">'+p.score+'</div><div style="font-size:11px;color:var(--muted);margin-top:4px;">best streak '+p.maxStreak+'</div>';
+    pod.appendChild(c);
+  });
+}
+
+/* ════════════════════════════════════════
+   PLAYER STATE
+════════════════════════════════════════ */
+const pID='u'+Math.random().toString(36).slice(2,10);
+let pName='',pColor=COLORS[0],pScore=0;
+let pRound=0,pRoundType='r1',pQuestions=[],pCurrent=0,pBuzzed=false,pChoice=-1;
+
+function initPlayer(){
+  const jp=new URLSearchParams(location.search).get('join');
+  if(jp)$('code-inp').value=jp;
+  $('code-inp').addEventListener('keydown',e=>{if(e.key==='Enter')$('pname').focus();});
+  $('pname').addEventListener('keydown',e=>{if(e.key==='Enter')playerJoin();});
+}
+
+function playerJoin(){
+  const code=$('code-inp').value.trim();
+  pName=$('pname').value.trim();
+  const err=$('perr');
+  if(code.length!==4||!/^\d+$/.test(code)){err.textContent='Enter the 4-digit code shown on the TV.';return;}
+  if(!pName){err.textContent='Enter your name!';return;}
+  err.textContent='';
+  connectAbly(code,()=>{
+    sub('joined',d=>{
+      if(d.id!==pID)return;
+      pColor=d.color;
+      $('p-av').style.background=pColor;
+      $('p-av').textContent=pName.slice(0,2).toUpperCase();
+    });
+    sub('round-start',d=>{
+      pRound=d.round;pRoundType=d.type;pQuestions=d.qs;pCurrent=0;
+      hide('pwaiting');hide('pbetween');show('pgame');
+      $('p-dname').textContent=pName;
+      $('p-av').textContent=pName.slice(0,2).toUpperCase();
+      $('p-av').style.background=pColor;
+      const rnames=['Round 1','Round 2','Round 3'];
+      $('p-round-badge').textContent=rnames[pRound]||'';
+    });
+    sub('question',d=>{
+      pCurrent=d.index;pBuzzed=false;pChoice=-1;
+      renderPlayerQ();
+    });
+    sub('reveal',d=>{
+      document.querySelectorAll('.p-ans').forEach((b,i)=>{
+        b.disabled=true;b.classList.remove('pa-sel');
+        if(i===d.correct) b.classList.add('pa-rev');
+        else if(i===pChoice) b.classList.add('pa-no');
+        if(i===d.correct&&d.firstId===pID) b.classList.add('pa-first');
+      });
+      hide('p-locked');
+      if(d.scores&&d.scores[pID]){pScore=d.scores[pID].score;$('p-score').textContent=pScore;}
+      if(d.firstId===pID){
+        $('p-locked-title').textContent='First! Bonus point!';
+        $('p-locked-title').style.color='var(--gold)';
+        show('p-locked');
+      }
+    });
+    sub('between-rounds',d=>{
+      hide('pgame');show('pbetween');
+      $('p-between-title').textContent='Round '+(d.round+1)+' complete!';
+      if(d.scores&&d.scores[pID]){pScore=d.scores[pID].score;$('p-between-score').textContent=pScore;}
+    });
+    sub('game-end',d=>playerEnd(d.scores));
+    hide('pjoin');show('pwaiting');
+    $('wait-name').textContent=pName.toUpperCase();
+    pub('join',{id:pID,name:pName});
+  });
+}
+
+function renderPlayerQ(){
+  const q=pQuestions[pCurrent];
+  const rnames=['Round 1','Round 2','Round 3'];
+  $('p-round-badge').textContent=rnames[pRound]||'';
+  $('p-q-ind').textContent='Q '+(pCurrent+1)+' of '+pQuestions.length;
+  hide('p-locked');
+  $('p-locked-title').textContent='Locked in!';
+  $('p-locked-title').style.color='var(--green)';
+  $('p-locked-sub').textContent='Waiting for others...';
+
+  const extra=$('p-content-extra');
+  extra.innerHTML='';
+
+  if(pRoundType==='r1'){
+    $('p-content-lbl').textContent='Now playing on TV';
+    $('p-content-hint').textContent=q.hint||'';
+    extra.innerHTML='<div class="music-bars" id="music-bars"><div class="bar-anim"></div><div class="bar-anim"></div><div class="bar-anim"></div><div class="bar-anim"></div><div class="bar-anim"></div></div>';
+  } else if(pRoundType==='r2'){
+    $('p-content-lbl').textContent='Who is this?';
+    $('p-content-hint').textContent=q.hint||'';
+    if(q.img) extra.innerHTML='<img class="p-img-preview" src="'+q.img+'" alt="Mystery artist" style="filter:blur(12px);transition:filter .4s;">';
+  } else if(pRoundType==='r3'){
+    $('p-content-lbl').textContent='Lyric clue';
+    $('p-content-hint').textContent='';
+    extra.innerHTML='<div class="p-lyric-clue">'+q.clue+'</div>';
+  }
+
+  const grid=$('p-ans-grid');grid.innerHTML='';
+  q.answers.forEach((a,i)=>{
+    const b=document.createElement('button');b.className='p-ans';
+    b.innerHTML='<span class="al">'+LTRS[i]+'</span>'+a;
+    b.onclick=()=>submitAnswer(i);
+    grid.appendChild(b);
+  });
+}
+
+function submitAnswer(idx){
+  if(pBuzzed)return;
+  pBuzzed=true;pChoice=idx;
+  document.querySelectorAll('.p-ans').forEach((b,i)=>{b.disabled=true;if(i===idx)b.classList.add('pa-sel');});
+  // Unblur image on player phone after answering
+  if(pRoundType==='r2'){const img=$('p-content-extra').querySelector('img');if(img)img.style.filter='none';}
+  show('p-locked');
+  pub('answer',{id:pID,choice:idx});
+}
+
+function playerEnd(scores){
+  hide('pgame');show('pend');
+  const s=(scores&&scores[pID])?scores[pID].score:pScore;
+  $('p-final').textContent=s;
+  const maxPossible=30*15+25*2+25*2;
+  const pct=Math.round((s/maxPossible)*100);
+  let grade,color;
+  if(pct>=75){grade='ROCK GOD';color='#F5C842';}
+  else if(pct>=50){grade='CHART TOPPER';color='#4CAF50';}
+  else if(pct>=30){grade='B-SIDE HERO';color='#aaa';}
+  else{grade='BACK TO VINYL';color='#E8334A';}
+  $('p-grade').textContent=grade;$('p-grade').style.color=color;
+}
+</script>
+</body>
+</html>
