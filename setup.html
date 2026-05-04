@@ -244,31 +244,38 @@ async function run(){
     return;
   }
 
-  log("Fetching audio previews via Deezer (no auth needed)...","inf");
+  log("Fetching audio previews...","inf");
   for(var i=0;i<SONGS.length;i++){
     var s=SONGS[i];
     var preview="";
-    // Try Deezer first - free API, permanent URLs, no auth
+
+    // 1. Try Deezer via CORS proxy (fetched NOW in setup, baked into game file)
     try{
-      var dr=await fetch("https://api.deezer.com/search?q="+encodeURIComponent(s[2]+" "+s[3])+"&limit=5&output=json");
+      var deezerUrl="https://api.deezer.com/search?q="+encodeURIComponent(s[2]+" "+s[3])+"&limit=5";
+      var proxyUrl="https://proxy.corsfix.com/?"+deezerUrl;
+      var dr=await fetch(proxyUrl);
       var dd=await dr.json();
       var dtracks=dd.data||[];
       for(var dt=0;dt<dtracks.length;dt++){if(dtracks[dt].preview){preview=dtracks[dt].preview;break;}}
     }catch(e){}
-    // Try Spotify next
+
+    // 2. Try Spotify
     if(!preview){
       try{
         var sr=await fetch("https://api.spotify.com/v1/search?q="+encodeURIComponent(s[2]+" "+s[3])+"&type=track&limit=8",{headers:{Authorization:"Bearer "+token}});
         var sd=await sr.json();
-        var tracks=sd.tracks&&sd.tracks.items||[];
+        var tracks=(sd.tracks&&sd.tracks.items)||[];
         for(var t=0;t<tracks.length;t++){if(tracks[t].preview_url){preview=tracks[t].preview_url;break;}}
       }catch(e){}
     }
-    // Fall back to iTunes hardcoded URLs
-    if(!preview && ITUNES_FALLBACK[s[2]]){preview=ITUNES_FALLBACK[s[2]];}
-    log((preview?"OK":"--")+" "+s[2]+" — "+s[3],preview?"ok":"no");
-    r1Final.push({decade:s[0],hint:s[1],song:s[2]+" — "+s[3],preview:preview,answers:s[4],correct:s[5]});
-    await new Promise(function(r){setTimeout(r,120);});
+
+    // 3. iTunes hardcoded fallback
+    if(!preview&&ITUNES_FALLBACK[s[2]]){preview=ITUNES_FALLBACK[s[2]];}
+
+    log((preview?"OK ✓":"MISS")+" "+s[2]+" — "+s[3],preview?"ok":"no");
+    var proxyPreview=preview?"https://proxy.corsfix.com/?"+preview:"";
+    r1Final.push({decade:s[0],hint:s[1],song:s[2]+" — "+s[3],preview:proxyPreview,answers:s[4],correct:s[5]});
+    await new Promise(function(r){setTimeout(r,200);});
   }
 
   log("Fetching artist photos from Wikipedia...","inf");
@@ -525,14 +532,14 @@ var GAME_TEMPLATE = [
 '        <div class="room-code-label">Players enter this code</div>',
 '        <div class="room-code-num" id="room-code-num">----</div>',
 '      </div>',
-'      <div class="lbl">Game link — share with players</div>',
+'      <div class="lbl">Game link</div>',
 '      <div style="display:flex;gap:8px;align-items:center;margin-bottom:14px;">',
-'        <a id="url-box" href="#" target="_blank" style="flex:1;background:var(--surf);border:1px solid var(--border);border-radius:8px;padding:10px 14px;font-size:12px;color:var(--gold);word-break:break-all;line-height:1.6;font-family:monospace;text-decoration:none;display:block;">—</a>',
+'        <a href="https://phillyfree123-gif.github.io/Riff-Recall/" target="_blank" style="flex:1;background:var(--surf);border:1px solid var(--border);border-radius:8px;padding:10px 14px;font-size:12px;color:var(--gold);word-break:break-all;line-height:1.6;font-family:monospace;text-decoration:underline;display:block;">https://phillyfree123-gif.github.io/Riff-Recall/</a>',
 '        <button id="copy-btn" onclick="copyLink()" style="flex-shrink:0;background:var(--gold);color:#111;border:none;border-radius:8px;padding:10px 14px;font-size:13px;font-weight:500;cursor:pointer;white-space:nowrap;">Copy</button>',
 '      </div>',
 '      <div class="lbl">Scan to join</div>',
-'      <div style="background:#fff;padding:10px;border-radius:8px;display:inline-block;margin-bottom:14px;">',
-'        <img id="qr-img" src="" width="160" height="160" alt="QR Code" style="display:block;">',
+'      <div style="background:#fff;padding:12px;border-radius:10px;display:inline-block;margin-bottom:14px;">',
+'        <img src="https://api.qrserver.com/v1/create-qr-code/?size=180x180&data=https%3A%2F%2Fphillyfree123-gif.github.io%2FRiff-Recall%2F" width="180" height="180" alt="QR Code" style="display:block;">',
 '      </div>',
 '      <div class="how-to"><strong>How players join:</strong><br>1. Open the game link on their phone<br>2. Tap <strong>Join as Player</strong><br>3. Enter the 4-digit room code &amp; name</div>',
 '      <div id="conn-status" style="font-size:13px;color:var(--muted);margin-bottom:10px;">Connecting...</div>',
@@ -688,7 +695,7 @@ var GAME_TEMPLATE = [
 'function genCode(){return String(Math.floor(1000+Math.random()*9000));}',
 '',
 'function setStatus(s,t){show("sbar");$("sdot").className="sdot "+s;$("stxt").textContent=t;}',
-'function copyLink(){var u=$("url-box").href||location.href.split("?")[0];navigator.clipboard.writeText(u).then(function(){$("copy-btn").textContent="Copied!";$("copy-btn").style.background="var(--green)";setTimeout(function(){$("copy-btn").textContent="Copy";$("copy-btn").style.background="var(--gold)";},2000);});}',
+'function copyLink(){navigator.clipboard.writeText("https://phillyfree123-gif.github.io/Riff-Recall/").then(function(){$("copy-btn").textContent="Copied!";$("copy-btn").style.background="var(--green)";setTimeout(function(){$("copy-btn").textContent="Copy";$("copy-btn").style.background="var(--gold)";},2000);});}',,
 '',
 'var ch=null;',
 'function connectAbly(room,cb){',
@@ -725,12 +732,7 @@ var GAME_TEMPLATE = [
 '  if(roomCode)return;',
 '  roomCode=genCode();',
 '  $("room-code-num").textContent=roomCode;',
-'  var gameURL=location.href.split("?")[0];',
-'  var urlEl=$("url-box");',
-'  urlEl.textContent=gameURL;',
-'  urlEl.href=gameURL;',
-'  var qrEl=$("qr-img");',
-'  if(qrEl){qrEl.src="https://api.qrserver.com/v1/create-qr-code/?size=160x160&data="+encodeURIComponent(gameURL);}',
+'  /* URL and QR are hardcoded to https://phillyfree123-gif.github.io/Riff-Recall/ */',
 '  connectAbly(roomCode,function(){',
 '    $("conn-status").textContent="Ready! Waiting for players...";',
 '    $("conn-status").style.color="var(--green)";',
