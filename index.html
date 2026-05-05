@@ -509,7 +509,7 @@ input{font-family:'DM Sans',sans-serif;}
       <span style="font-size:13px;color:var(--muted);">s</span>
     </div>
     <div id="precall-list" style="width:100%;display:flex;flex-direction:column;gap:10px;margin-bottom:1rem;"></div>
-    <div style="display:flex;flex-direction:column;gap:10px;">
+    <div class="btn-submit-area" style="display:flex;flex-direction:column;gap:10px;">
       <button onclick="submitRecall()" style="background:var(--gold);color:#111;border:none;border-radius:10px;padding:16px;font-size:17px;font-weight:700;width:100%;">Add to Queue ✓</button>
       <button onclick="submitRecallEmpty()" style="background:var(--surf2);color:var(--muted);border:1px solid var(--border);border-radius:10px;padding:14px;font-size:14px;width:100%;">😴 Skip — I'm good</button>
     </div>
@@ -616,7 +616,7 @@ function playBgMusic(style) {
     if (ctx.state === 'suspended') ctx.resume();
     bgGain = ctx.createGain();
     // Volume: 0.16 for suspense, 0.20 for others (between old iterations)
-    var vol = style === 'suspense' ? 0.16 : 0.20;
+    var vol = style === 'suspense' ? 0.19 : 0.20;
     bgGain.gain.setValueAtTime(0, ctx.currentTime);
     bgGain.gain.linearRampToValueAtTime(vol, ctx.currentTime + 1.2);
     bgGain.connect(ctx.destination);
@@ -960,6 +960,55 @@ function playPing(place) {
   o2.start(t); o2.stop(t + c.dur * 0.6);
 }
 
+function playBoxingBell() {
+  var ctx = getCtx();
+  if (ctx.state === 'suspended') ctx.resume();
+  var mg = ctx.createGain();
+  mg.connect(ctx.destination);
+  var t = ctx.currentTime;
+  // 3 deep resonant bell hits like a boxing match bell
+  [0, 0.7, 1.4].forEach(function(offset) {
+    var o = ctx.createOscillator();
+    var g = ctx.createGain();
+    o.type = 'sine';
+    o.frequency.setValueAtTime(440, t + offset);
+    o.frequency.exponentialRampToValueAtTime(330, t + offset + 1.2);
+    g.gain.setValueAtTime(0.55, t + offset + 0.005);
+    g.gain.exponentialRampToValueAtTime(0.001, t + offset + 1.3);
+    o.connect(g); g.connect(mg);
+    o.start(t + offset); o.stop(t + offset + 1.35);
+    // Overtone for metallic ring
+    var o2 = ctx.createOscillator();
+    var g2 = ctx.createGain();
+    o2.type = 'sine';
+    o2.frequency.setValueAtTime(880, t + offset);
+    o2.frequency.exponentialRampToValueAtTime(660, t + offset + 0.8);
+    g2.gain.setValueAtTime(0.25, t + offset + 0.005);
+    g2.gain.exponentialRampToValueAtTime(0.001, t + offset + 0.9);
+    o2.connect(g2); g2.connect(mg);
+    o2.start(t + offset); o2.stop(t + offset + 1.0);
+  });
+}
+
+function playAllInDing() {
+  var ctx = getCtx();
+  if (ctx.state === 'suspended') ctx.resume();
+  var mg = ctx.createGain();
+  mg.connect(ctx.destination);
+  var t = ctx.currentTime;
+  // Bright clear ding — like a service bell
+  [1047, 1319, 1568].forEach(function(freq, i) {
+    var o = ctx.createOscillator();
+    var g = ctx.createGain();
+    o.type = 'sine';
+    o.frequency.setValueAtTime(freq, t + i*0.12);
+    g.gain.setValueAtTime(0.4, t + i*0.12);
+    g.gain.exponentialRampToValueAtTime(0.001, t + i*0.12 + 0.5);
+    o.connect(g); g.connect(mg);
+    o.start(t + i*0.12); o.stop(t + i*0.12 + 0.55);
+  });
+}
+
 function playCrescendo() {
   var ctx = getCtx();
   if (ctx.state === 'suspended') ctx.resume();
@@ -997,7 +1046,7 @@ var INTRO_TEXT = "Welcome to Riff and Recall, the ultimate music trivia party ga
   "In Round 3, cryptic lyric clues challenge your song knowledge. Can you identify the track? " +
   "At the end, the champion earns the legendary title of ROCK GOD! " +
   "Second place is a ROCK LEGEND, and third place is a ROCK BEAST! " +
-  "Alright, let's get this party started!";
+  "Alright, let us get this party started!";
 
 function speakIntro() {
   if (!window.speechSynthesis) { finishAbout(); return; }
@@ -1158,67 +1207,56 @@ var R1_POOL = [
 ];
 
 var R2_POOL = [
-  {hint:'70s-80s Rock Legend', wiki:'Freddie_Mercury', answers:['Mick Jagger','Freddie Mercury','David Bowie','Elton John'], correct:1},
-  {hint:'70s-80s Glam Rock', wiki:'David_Bowie', answers:['Lou Reed','Iggy Pop','David Bowie','Bryan Ferry'], correct:2},
-  {hint:'80s-90s Pop Icon', wiki:'Michael_Jackson', answers:['Prince','Michael Jackson','Whitney Houston','Janet Jackson'], correct:1},
-  {hint:'70s-80s Classic Rock', wiki:'Mick_Jagger', answers:['Keith Richards','Mick Jagger','Rod Stewart','Roger Daltrey'], correct:1},
-  {hint:'70s-80s British Rock', wiki:'Elton_John', answers:['Elton John','Billy Joel','Rod Stewart','Barry Manilow'], correct:0},
-  {hint:'80s Pop', wiki:'Madonna_(entertainer)', answers:['Cyndi Lauper','Madonna','Whitney Houston','Janet Jackson'], correct:1},
-  {hint:'90s Grunge', wiki:'Kurt_Cobain', answers:['Eddie Vedder','Kurt Cobain','Chris Cornell','Layne Staley'], correct:1},
-  {hint:'90s-00s Hip Hop', wiki:'Snoop_Dogg', answers:['Ice Cube','Dr. Dre','Snoop Dogg','Warren G'], correct:2},
-  {hint:'00s-10s Pop', wiki:'Beyonc%C3%A9', answers:['Rihanna','Beyonce','Alicia Keys','Ciara'], correct:1},
-  {hint:'00s-10s R&B', wiki:'Rihanna', answers:['Beyonce','Rihanna','Nicki Minaj','Ciara'], correct:1},
-  {hint:'10s-20s Pop', wiki:'Taylor_Swift', answers:['Ariana Grande','Katy Perry','Taylor Swift','Selena Gomez'], correct:2},
-  {hint:'10s Pop', wiki:'Ed_Sheeran', answers:['Sam Smith','Ed Sheeran','Harry Styles','Shawn Mendes'], correct:1},
-  {hint:'10s-20s R&B', wiki:'The_Weeknd', answers:['Drake','Future','The Weeknd','Post Malone'], correct:2},
-  {hint:'10s Hip Hop', wiki:'Kendrick_Lamar', answers:['J. Cole','Drake','Kendrick Lamar','Travis Scott'], correct:2},
-  {hint:'20s Pop', wiki:'Billie_Eilish', answers:['Olivia Rodrigo','Doja Cat','Billie Eilish','Ariana Grande'], correct:2},
-  {hint:'10s-20s Pop', wiki:'Dua_Lipa', answers:['Dua Lipa','Ariana Grande','Lizzo','Doja Cat'], correct:0},
-  {hint:'10s-20s Hip Hop', wiki:'Drake_(musician)', answers:['Drake','Kanye West','Jay-Z','Travis Scott'], correct:0},
-  {hint:'80s-90s R&B', wiki:'Whitney_Houston', answers:['Janet Jackson','Mariah Carey','Whitney Houston','Anita Baker'], correct:2},
-  {hint:'70s Reggae', wiki:'Bob_Marley', answers:['Peter Tosh','Jimmy Cliff','Bob Marley','Toots Hibbert'], correct:2},
-  {hint:'80s Rock', wiki:'Bono', answers:['Bono','Sting','Chris Martin','Brandon Flowers'], correct:0},
-  {hint:'70s-80s New Wave', wiki:'Debbie_Harry', answers:['Pat Benatar','Chrissie Hynde','Debbie Harry','Cyndi Lauper'], correct:2},
-  {hint:'90s-00s R&B', wiki:'Mariah_Carey', answers:['Celine Dion','Mariah Carey','Whitney Houston','Janet Jackson'], correct:1},
-  {hint:'00s Hip Hop', wiki:'Kanye_West', answers:['Jay-Z','Kanye West','Lil Wayne','T.I.'], correct:1},
-  {hint:'00s-10s Pop', wiki:'Katy_Perry', answers:['Lady Gaga','Katy Perry','Pink','Kesha'], correct:1},
-  {hint:'00s-10s Pop', wiki:'Lady_Gaga', answers:['Lady Gaga','Kesha','Katy Perry','Miley Cyrus'], correct:0},
-  {hint:'10s Pop', wiki:'Harry_Styles', answers:['Shawn Mendes','Harry Styles','Niall Horan','Zayn'], correct:1},
-  {hint:'20s Pop', wiki:'Olivia_Rodrigo', answers:['Sabrina Carpenter','Olivia Rodrigo','Doja Cat','Ariana Grande'], correct:1},
-  {hint:'10s-20s Hip Hop', wiki:'Post_Malone', answers:['Lil Uzi Vert','Travis Scott','Post Malone','Juice WRLD'], correct:2},
-  {hint:'10s Pop', wiki:'Adele', answers:['Adele','Duffy','Amy Winehouse','Paloma Faith'], correct:0},
-  {hint:'90s Pop', wiki:'Britney_Spears', answers:['Britney Spears','Christina Aguilera','Mandy Moore','Jessica Simpson'], correct:0},
-  // ── EXPANDED POOL (batch 2) ──
-  {hint:'70s Rock', wiki:'Bruce_Springsteen', answers:['Bob Seger','Bruce Springsteen','Tom Petty','John Mellencamp'], correct:1},
-  {hint:'70s-80s Pop Rock', wiki:'Stevie_Wonder', answers:['Stevie Wonder','Marvin Gaye','Al Green','Curtis Mayfield'], correct:0},
-  {hint:'70s Soul', wiki:'Aretha_Franklin', answers:['Diana Ross','Aretha Franklin','Gladys Knight','Tina Turner'], correct:1},
-  {hint:'70s Reggae', wiki:'Jimmy_Cliff', answers:['Peter Tosh','Toots Hibbert','Jimmy Cliff','Burning Spear'], correct:2},
-  {hint:'80s New Wave', wiki:'Cyndi_Lauper', answers:['Pat Benatar','Cyndi Lauper','Blondie','Siouxsie Sioux'], correct:1},
-  {hint:'80s Pop', wiki:'Prince', answers:['Prince','Rick James','George Clinton','Morris Day'], correct:0},
-  {hint:'80s Rock', wiki:'Bruce_Springsteen', answers:['John Mellencamp','Tom Petty','Bruce Springsteen','Bob Seger'], correct:2},
-  {hint:'80s Heavy Metal', wiki:'Ozzy_Osbourne', answers:['Rob Halford','Ozzy Osbourne','Ronnie James Dio','Alice Cooper'], correct:1},
-  {hint:'90s Alternative', wiki:'Trent_Reznor', answers:['Marilyn Manson','Trent Reznor','Billy Corgan','Thom Yorke'], correct:1},
-  {hint:'90s Hip Hop', wiki:'Tupac_Shakur', answers:['Biggie Smalls','Ice Cube','Tupac Shakur','Nas'], correct:2},
-  {hint:'90s Hip Hop', wiki:'The_Notorious_B.I.G.', answers:['Jay-Z','Tupac','The Notorious B.I.G.','Nas'], correct:2},
-  {hint:'90s R&B', wiki:'Usher', answers:['Chris Brown','Usher','Ne-Yo','R. Kelly'], correct:1},
-  {hint:'90s Country', wiki:'Garth_Brooks', answers:['Alan Jackson','Tim McGraw','Garth Brooks','George Strait'], correct:2},
-  {hint:'90s Pop', wiki:'Celine_Dion', answers:['Whitney Houston','Mariah Carey','Celine Dion','Gloria Estefan'], correct:2},
-  {hint:'00s Hip Hop', wiki:'Eminem', answers:['Jay-Z','Eminem','50 Cent','Lil Wayne'], correct:1},
-  {hint:'00s Hip Hop', wiki:'Jay-Z', answers:['Jay-Z','Kanye West','Nas','DMX'], correct:0},
-  {hint:'00s R&B', wiki:'Alicia_Keys', answers:['Alicia Keys','Ciara','Keyshia Cole','Jazmine Sullivan'], correct:0},
-  {hint:'00s Pop', wiki:'Justin_Timberlake', answers:['Ryan Timberlake','Justin Bieber','Justin Timberlake','Nick Lachey'], correct:2},
-  {hint:'00s Pop Punk', wiki:'Avril_Lavigne', answers:['Hayley Williams','Kelly Clarkson','Avril Lavigne','Pink'], correct:2},
-  {hint:'00s Rock', wiki:'Jack_White', answers:['Josh Homme','Jack White','Dave Grohl','Chris Cornell'], correct:1},
-  {hint:'10s Pop', wiki:'Justin_Bieber', answers:['Nick Jonas','Justin Bieber','Shawn Mendes','Charlie Puth'], correct:1},
-  {hint:'10s Pop', wiki:'Ariana_Grande', answers:['Ariana Grande','Selena Gomez','Demi Lovato','Miley Cyrus'], correct:0},
-  {hint:'10s Hip Hop', wiki:'Nicki_Minaj', answers:['Cardi B','Doja Cat','Nicki Minaj','Megan Thee Stallion'], correct:2},
-  {hint:'10s Hip Hop', wiki:'Cardi_B', answers:['Nicki Minaj','Cardi B','Doja Cat','Lizzo'], correct:1},
-  {hint:'10s Country', wiki:'Luke_Bryan', answers:['Blake Shelton','Luke Bryan','Jason Aldean','Florida Georgia Line'], correct:1},
-  {hint:'10s Indie Pop', wiki:'Lorde', answers:['Lana Del Rey','Lorde','Halsey','Lykke Li'], correct:1},
-  {hint:'20s Pop', wiki:'Doja_Cat', answers:['Doja Cat','Megan Thee Stallion','Cardi B','Lizzo'], correct:0},
-  {hint:'20s Hip Hop', wiki:'Travis_Scott', answers:['Lil Baby','Travis Scott','Roddy Ricch','NBA YoungBoy'], correct:1},
-  {hint:'20s Pop', wiki:'Sabrina_Carpenter', answers:['Olivia Rodrigo','Gracie Abrams','Sabrina Carpenter','Chappell Roan'], correct:2},
-  {hint:'20s Pop', wiki:'Chappell_Roan', answers:['Sabrina Carpenter','Charli XCX','Chappell Roan','Gracie Abrams'], correct:2},
+  {hint:"70s-80s Rock Legend", img:"https://upload.wikimedia.org/wikipedia/commons/thumb/b/be/Freddie_Mercury_performing_in_New_Haven_1977.jpg/400px-Freddie_Mercury_performing_in_New_Haven_1977.jpg", answers:["Mick Jagger","Freddie Mercury","David Bowie","Elton John"], correct:1},
+  {hint:"70s-80s Glam Rock", img:"https://upload.wikimedia.org/wikipedia/commons/thumb/b/b7/David_Bowie_-_Beat_Club_1973.jpg/400px-David_Bowie_-_Beat_Club_1973.jpg", answers:["Lou Reed","Iggy Pop","David Bowie","Bryan Ferry"], correct:2},
+  {hint:"80s-90s Pop Icon", img:"https://upload.wikimedia.org/wikipedia/commons/thumb/a/a4/Michael_Jackson_1984.jpg/400px-Michael_Jackson_1984.jpg", answers:["Prince","Michael Jackson","Whitney Houston","Janet Jackson"], correct:1},
+  {hint:"70s-80s Classic Rock", img:"https://upload.wikimedia.org/wikipedia/commons/thumb/d/d1/Mick_Jagger_by_Dina_Regine.jpg/400px-Mick_Jagger_by_Dina_Regine.jpg", answers:["Keith Richards","Mick Jagger","Rod Stewart","Roger Daltrey"], correct:1},
+  {hint:"70s-80s British Pop", img:"https://upload.wikimedia.org/wikipedia/commons/thumb/5/5e/Elton_John_in_Sweden_1975.jpg/400px-Elton_John_in_Sweden_1975.jpg", answers:["Elton John","Billy Joel","Rod Stewart","Barry Manilow"], correct:0},
+  {hint:"90s Grunge Icon", img:"https://upload.wikimedia.org/wikipedia/commons/thumb/b/b3/Kurt_Cobain_in_Utero_edit.jpg/400px-Kurt_Cobain_in_Utero_edit.jpg", answers:["Eddie Vedder","Kurt Cobain","Chris Cornell","Layne Staley"], correct:1},
+  {hint:"90s-00s Hip Hop", img:"https://upload.wikimedia.org/wikipedia/commons/thumb/a/a5/Snoop_Dogg_2019_by_Glenn_Francis.jpg/400px-Snoop_Dogg_2019_by_Glenn_Francis.jpg", answers:["Ice Cube","Dr. Dre","Snoop Dogg","Warren G"], correct:2},
+  {hint:"00s-10s Pop", img:"https://upload.wikimedia.org/wikipedia/commons/thumb/b/b5/191125_Taylor_Swift_at_the_2019_American_Music_Awards_%28cropped%29.jpg/400px-191125_Taylor_Swift_at_the_2019_American_Music_Awards_%28cropped%29.jpg", answers:["Ariana Grande","Katy Perry","Taylor Swift","Selena Gomez"], correct:2},
+  {hint:"10s Pop", img:"https://upload.wikimedia.org/wikipedia/commons/thumb/1/17/Ed_Sheeran_-_Multiply_Tour_2015.jpg/400px-Ed_Sheeran_-_Multiply_Tour_2015.jpg", answers:["Sam Smith","Ed Sheeran","Harry Styles","Shawn Mendes"], correct:1},
+  {hint:"10s-20s R&B", img:"https://upload.wikimedia.org/wikipedia/commons/thumb/3/3c/The_Weeknd_2013.jpg/400px-The_Weeknd_2013.jpg", answers:["Drake","Future","The Weeknd","Post Malone"], correct:2},
+  {hint:"10s Hip Hop", img:"https://upload.wikimedia.org/wikipedia/commons/thumb/9/98/Kendrick_Lamar_-_Coachella_2023_%28cropped%29.jpg/400px-Kendrick_Lamar_-_Coachella_2023_%28cropped%29.jpg", answers:["J. Cole","Drake","Kendrick Lamar","Travis Scott"], correct:2},
+  {hint:"20s Pop", img:"https://upload.wikimedia.org/wikipedia/commons/thumb/4/45/Billie_Eilish_at_the_2019_Glastonbury_Festival_%28cropped%29.jpg/400px-Billie_Eilish_at_the_2019_Glastonbury_Festival_%28cropped%29.jpg", answers:["Olivia Rodrigo","Doja Cat","Billie Eilish","Ariana Grande"], correct:2},
+  {hint:"10s-20s Pop", img:"https://upload.wikimedia.org/wikipedia/commons/thumb/e/e3/Dua_Lipa_2018.jpg/400px-Dua_Lipa_2018.jpg", answers:["Dua Lipa","Ariana Grande","Lizzo","Doja Cat"], correct:0},
+  {hint:"10s-20s Hip Hop", img:"https://upload.wikimedia.org/wikipedia/commons/thumb/2/21/Drake_July_2016.jpg/400px-Drake_July_2016.jpg", answers:["Drake","Kanye West","Jay-Z","Travis Scott"], correct:0},
+  {hint:"80s-90s R&B", img:"https://upload.wikimedia.org/wikipedia/commons/thumb/e/ef/Whitney_Houston_Welcome_Home_Heroes_1_cropped.jpg/400px-Whitney_Houston_Welcome_Home_Heroes_1_cropped.jpg", answers:["Janet Jackson","Mariah Carey","Whitney Houston","Anita Baker"], correct:2},
+  {hint:"70s Reggae", img:"https://upload.wikimedia.org/wikipedia/commons/thumb/a/ac/Bob-Marley.jpg/400px-Bob-Marley.jpg", answers:["Peter Tosh","Jimmy Cliff","Bob Marley","Toots Hibbert"], correct:2},
+  {hint:"80s Rock", img:"https://upload.wikimedia.org/wikipedia/commons/thumb/7/7a/Bono_2009_in_black_%26_white_%28cropped%29.jpg/400px-Bono_2009_in_black_%26_white_%28cropped%29.jpg", answers:["Bono","Sting","Chris Martin","Brandon Flowers"], correct:0},
+  {hint:"90s-00s R&B", img:"https://upload.wikimedia.org/wikipedia/commons/thumb/b/b7/Mariah_Carey_2019_%28cropped%29.jpg/400px-Mariah_Carey_2019_%28cropped%29.jpg", answers:["Celine Dion","Mariah Carey","Whitney Houston","Janet Jackson"], correct:1},
+  {hint:"00s Hip Hop", img:"https://upload.wikimedia.org/wikipedia/commons/thumb/e/e0/Kanye_West_at_the_2009_Tribeca_Film_Festival.jpg/400px-Kanye_West_at_the_2009_Tribeca_Film_Festival.jpg", answers:["Jay-Z","Kanye West","Lil Wayne","T.I."], correct:1},
+  {hint:"00s-10s Pop", img:"https://upload.wikimedia.org/wikipedia/commons/thumb/6/6e/Katy_Perry_-_Witness_The_Tour.jpg/400px-Katy_Perry_-_Witness_The_Tour.jpg", answers:["Lady Gaga","Katy Perry","Pink","Kesha"], correct:1},
+  {hint:"00s-10s Pop", img:"https://upload.wikimedia.org/wikipedia/commons/thumb/8/89/Lady_Gaga_at_VMA%2C_2013_%28crop%29.jpg/400px-Lady_Gaga_at_VMA%2C_2013_%28crop%29.jpg", answers:["Lady Gaga","Kesha","Katy Perry","Miley Cyrus"], correct:0},
+  {hint:"10s Pop", img:"https://upload.wikimedia.org/wikipedia/commons/thumb/6/6d/Harry_Styles_in_Cologne_2018_%28cropped%29.jpg/400px-Harry_Styles_in_Cologne_2018_%28cropped%29.jpg", answers:["Shawn Mendes","Harry Styles","Niall Horan","Zayn"], correct:1},
+  {hint:"20s Pop", img:"https://upload.wikimedia.org/wikipedia/commons/thumb/1/1c/Olivia_Rodrigo_2022_%28cropped%29.jpg/400px-Olivia_Rodrigo_2022_%28cropped%29.jpg", answers:["Sabrina Carpenter","Olivia Rodrigo","Doja Cat","Ariana Grande"], correct:1},
+  {hint:"10s-20s Hip Hop", img:"https://upload.wikimedia.org/wikipedia/commons/thumb/3/3b/Post_Malone_2019_%28cropped%29.jpg/400px-Post_Malone_2019_%28cropped%29.jpg", answers:["Lil Uzi Vert","Travis Scott","Post Malone","Juice WRLD"], correct:2},
+  {hint:"10s Pop", img:"https://upload.wikimedia.org/wikipedia/commons/thumb/b/b1/Adele_2016_%28cropped%29.jpg/400px-Adele_2016_%28cropped%29.jpg", answers:["Adele","Duffy","Amy Winehouse","Paloma Faith"], correct:0},
+  {hint:"90s Pop", img:"https://upload.wikimedia.org/wikipedia/commons/thumb/5/5d/Britney_Spears_-_The_Circus_Starring_Britney_Spears_%28cropped%29.jpg/400px-Britney_Spears_-_The_Circus_Starring_Britney_Spears_%28cropped%29.jpg", answers:["Britney Spears","Christina Aguilera","Mandy Moore","Jessica Simpson"], correct:0},
+  {hint:"70s Rock", img:"https://upload.wikimedia.org/wikipedia/commons/thumb/d/d4/Bruce_Springsteen_-_The_River_Tour_Tempe_1980.jpg/400px-Bruce_Springsteen_-_The_River_Tour_Tempe_1980.jpg", answers:["Bob Seger","Bruce Springsteen","Tom Petty","John Mellencamp"], correct:1},
+  {hint:"70s-80s Soul", img:"https://upload.wikimedia.org/wikipedia/commons/thumb/7/7f/Stevie_Wonder_-_A_Wonder_Summer%27s_Night_%28cropped%29.jpg/400px-Stevie_Wonder_-_A_Wonder_Summer%27s_Night_%28cropped%29.jpg", answers:["Stevie Wonder","Marvin Gaye","Al Green","Curtis Mayfield"], correct:0},
+  {hint:"70s Soul", img:"https://upload.wikimedia.org/wikipedia/commons/thumb/4/4d/Aretha_Franklin_1968.jpg/400px-Aretha_Franklin_1968.jpg", answers:["Diana Ross","Aretha Franklin","Gladys Knight","Tina Turner"], correct:1},
+  {hint:"80s New Wave", img:"https://upload.wikimedia.org/wikipedia/commons/thumb/6/6f/Cyndi_Lauper_2016_%28cropped%29.jpg/400px-Cyndi_Lauper_2016_%28cropped%29.jpg", answers:["Pat Benatar","Cyndi Lauper","Debbie Harry","Siouxsie Sioux"], correct:1},
+  {hint:"80s Pop/R&B", img:"https://upload.wikimedia.org/wikipedia/commons/thumb/4/43/Prince_in_1985.jpg/400px-Prince_in_1985.jpg", answers:["Prince","Rick James","George Clinton","Morris Day"], correct:0},
+  {hint:"80s Heavy Metal", img:"https://upload.wikimedia.org/wikipedia/commons/thumb/b/b5/Ozzy_Osbourne_1982_%28cropped%29.jpg/400px-Ozzy_Osbourne_1982_%28cropped%29.jpg", answers:["Rob Halford","Ozzy Osbourne","Ronnie James Dio","Alice Cooper"], correct:1},
+  {hint:"90s Hip Hop", img:"https://upload.wikimedia.org/wikipedia/commons/thumb/a/a3/2Pac_in_1992.jpg/400px-2Pac_in_1992.jpg", answers:["Biggie Smalls","Ice Cube","Tupac Shakur","Nas"], correct:2},
+  {hint:"90s R&B", img:"https://upload.wikimedia.org/wikipedia/commons/thumb/8/82/Usher_2011.jpg/400px-Usher_2011.jpg", answers:["Chris Brown","Usher","Ne-Yo","R. Kelly"], correct:1},
+  {hint:"90s Country", img:"https://upload.wikimedia.org/wikipedia/commons/thumb/8/8e/Garth_Brooks_2019_%28cropped%29.jpg/400px-Garth_Brooks_2019_%28cropped%29.jpg", answers:["Alan Jackson","Tim McGraw","Garth Brooks","George Strait"], correct:2},
+  {hint:"00s Hip Hop", img:"https://upload.wikimedia.org/wikipedia/commons/thumb/b/bc/Eminem_concert_-_Helsinki_2010.jpg/400px-Eminem_concert_-_Helsinki_2010.jpg", answers:["Jay-Z","Eminem","50 Cent","Lil Wayne"], correct:1},
+  {hint:"00s Hip Hop", img:"https://upload.wikimedia.org/wikipedia/commons/thumb/f/f1/Jay_Z_at_the_2009_Tribeca_Film_Festival_%28cropped%29.jpg/400px-Jay_Z_at_the_2009_Tribeca_Film_Festival_%28cropped%29.jpg", answers:["Jay-Z","Kanye West","Nas","DMX"], correct:0},
+  {hint:"00s R&B", img:"https://upload.wikimedia.org/wikipedia/commons/thumb/2/26/Alicia_Keys_2019_%28cropped%29.jpg/400px-Alicia_Keys_2019_%28cropped%29.jpg", answers:["Alicia Keys","Ciara","Keyshia Cole","Jazmine Sullivan"], correct:0},
+  {hint:"00s Pop", img:"https://upload.wikimedia.org/wikipedia/commons/thumb/7/7f/Justin_Timberlake_2018_%28cropped%29.jpg/400px-Justin_Timberlake_2018_%28cropped%29.jpg", answers:["Nick Lachey","Justin Bieber","Justin Timberlake","Ryan Cabrera"], correct:2},
+  {hint:"00s Pop Punk", img:"https://upload.wikimedia.org/wikipedia/commons/thumb/e/e5/Avril_Lavigne_2019_%28cropped%29.jpg/400px-Avril_Lavigne_2019_%28cropped%29.jpg", answers:["Hayley Williams","Kelly Clarkson","Avril Lavigne","Pink"], correct:2},
+  {hint:"10s Pop", img:"https://upload.wikimedia.org/wikipedia/commons/thumb/c/ca/Justin_Bieber_in_2015.jpg/400px-Justin_Bieber_in_2015.jpg", answers:["Nick Jonas","Justin Bieber","Shawn Mendes","Charlie Puth"], correct:1},
+  {hint:"10s Pop", img:"https://upload.wikimedia.org/wikipedia/commons/thumb/b/b8/Ariana_Grande_2018_%28cropped%29.jpg/400px-Ariana_Grande_2018_%28cropped%29.jpg", answers:["Ariana Grande","Selena Gomez","Demi Lovato","Miley Cyrus"], correct:0},
+  {hint:"10s Hip Hop", img:"https://upload.wikimedia.org/wikipedia/commons/thumb/7/71/Nicki_Minaj_2012_%28cropped%29.jpg/400px-Nicki_Minaj_2012_%28cropped%29.jpg", answers:["Cardi B","Doja Cat","Nicki Minaj","Megan Thee Stallion"], correct:2},
+  {hint:"10s Hip Hop", img:"https://upload.wikimedia.org/wikipedia/commons/thumb/1/1b/Cardi_B_2019_%28cropped%29.jpg/400px-Cardi_B_2019_%28cropped%29.jpg", answers:["Nicki Minaj","Cardi B","Doja Cat","Lizzo"], correct:1},
+  {hint:"10s Indie Pop", img:"https://upload.wikimedia.org/wikipedia/commons/thumb/a/a5/Lorde_at_the_2018_American_Music_Awards_%28cropped%29.jpg/400px-Lorde_at_the_2018_American_Music_Awards_%28cropped%29.jpg", answers:["Lana Del Rey","Lorde","Halsey","Lykke Li"], correct:1},
+  {hint:"20s Pop", img:"https://upload.wikimedia.org/wikipedia/commons/thumb/f/f2/Doja_Cat_2019_%28cropped%29.jpg/400px-Doja_Cat_2019_%28cropped%29.jpg", answers:["Doja Cat","Megan Thee Stallion","Cardi B","Lizzo"], correct:0},
+  {hint:"20s Hip Hop", img:"https://upload.wikimedia.org/wikipedia/commons/thumb/8/8e/Travis_Scott_in_2018_%28cropped%29.jpg/400px-Travis_Scott_in_2018_%28cropped%29.jpg", answers:["Lil Baby","Travis Scott","Roddy Ricch","NBA YoungBoy"], correct:1},
+  {hint:"20s Pop", img:"https://upload.wikimedia.org/wikipedia/commons/thumb/7/79/Beyonc%C3%A9_at_The_Formation_World_Tour_cropped.jpg/400px-Beyonc%C3%A9_at_The_Formation_World_Tour_cropped.jpg", answers:["Rihanna","Beyonce","Alicia Keys","Ciara"], correct:1},
+  {hint:"00s-10s R&B", img:"https://upload.wikimedia.org/wikipedia/commons/thumb/3/3e/Rihanna_-_777_Tour_-_7Countries7Days_-_A380_%283%29_%28cropped%29.jpg/400px-Rihanna_-_777_Tour_-_7Countries7Days_-_A380_%283%29_%28cropped%29.jpg", answers:["Beyonce","Rihanna","Nicki Minaj","Ciara"], correct:1},
+  {hint:"80s New Wave", img:"https://upload.wikimedia.org/wikipedia/commons/thumb/7/7e/Blondie_2011.jpg/400px-Blondie_2011.jpg", answers:["Pat Benatar","Debbie Harry","Cyndi Lauper","Siouxsie Sioux"], correct:1}
 ];
 
 var R3_POOL = [
@@ -1277,7 +1315,7 @@ var R3_POOL = [
    song:'White Flag', answers:['Dido','Sia','Adele','Florence Welch'], correct:0},
   {clue:'Someone describes the feeling of falling in love for the first time as terrifying and wonderful all at once. Every sound becomes music.',
    song:'Cant Help Falling In Love', answers:['Frank Sinatra','Elvis Presley','Dean Martin','Roy Orbison'], correct:1},
-  {clue:'A body-positive hit by Meghan Trainor about loving your curves. The title refers to a musical feature — the low-frequency instrument in a song.',
+  {clue:'A body-positive hit about loving your curves. The title refers to a musical feature — the low-frequency instrument in a song. The title refers to a musical feature — the low-frequency instrument in a song.',
    song:'All About That Bass', answers:['Katy Perry','Meghan Trainor','Lizzo','Adele'], correct:1},
   {clue:'A pop anthem where the singer gets knocked down by critics and haters but keeps getting back up. The chorus is an animal sound repeated in the title.',
    song:'Roar', answers:['Pink','Katy Perry','Kelly Clarkson','Kesha'], correct:1},
@@ -1293,7 +1331,7 @@ var R3_POOL = [
    song:'Slide', answers:['Frank Ocean','Daniel Caesar','H.E.R.','dvsn'], correct:0},
   {clue:'A man describes watching the woman he loves marry someone else. He stands at the back of the church and says nothing. The melody is devastating.',
    song:'She Used To Be Mine', answers:['Gavin DeGraw','Josh Groban','James Blunt','Train'], correct:2},
-  {clue:'A classic Lauryn Hill R&B song about being unable to stop thinking about an ex. The title refers to an element that connects two things.',
+  {clue:'A classic Fugees member R&B song about being unable to stop thinking about an ex. The title refers to an element that connects two things. The title refers to an element that connects two things.',
    song:'Ex Factor', answers:['Alicia Keys','Lauryn Hill','Erykah Badu','Jill Scott'], correct:1},
   {clue:'The singer describes being raised in a town with nothing to do and music being the only escape. Every weekend was the same party until someone left.',
    song:'Small Town', answers:['John Cougar Mellencamp','Tom Petty','Bruce Springsteen','Bob Seger'], correct:0},
@@ -1323,7 +1361,7 @@ var R3_POOL = [
    song:'One Dance', answers:['Drake','The Weeknd','Travis Scott','Future'], correct:0},
   {clue:'The narrator describes their hometown as a place they could not wait to leave but now miss desperately. The song is a love letter to a small city.',
    song:'Take Me Home Country Roads', answers:['John Denver','James Taylor','Jim Croce','Cat Stevens'], correct:0},
-  {clue:'A Dua Lipa disco-pop hit about feeling so good in love that you feel weightless. The title is a word meaning to float or rise into the air.',
+  {clue:'A disco-pop hit about feeling so good in love that you feel weightless. The artist is known for Future Nostalgia. The title is a word meaning to float or rise into the air.',
    song:'Levitating', answers:['Ariana Grande','Dua Lipa','Charli XCX','Bebe Rexha'], correct:1},
   {clue:'The narrator is at a crossroads and asks for a sign from the universe. The song features handclaps and a gospel choir in the final chorus.',
    song:'What Goes Around', answers:['Usher','Justin Timberlake','Robin Thicke','John Legend'], correct:1},
@@ -1333,7 +1371,7 @@ var R3_POOL = [
    song:'Life Is A Highway', answers:['Tom Cochrane','John Mellencamp','Tom Petty','Bruce Springsteen'], correct:0},
   {clue:'The narrator has been waiting for years for a relationship to change. They finally accept it never will. The final line is one word, said three times.',
    song:'Let Her Go', answers:['Passenger','Ed Sheeran','James Arthur','Lewis Capaldi'], correct:0},
-  {clue:'A boastful anthem where the rapper describes their lavish lifestyle — private jets, designer clothes, expensive champagne — in extraordinary detail.',
+  {clue:'A boastful West Coast rap anthem. The MC demands everyone sit down and says one commanding word over and over in the hook.',
    song:'HUMBLE.', answers:['Cardi B','Drake','Kendrick Lamar','Jay-Z'], correct:2},
   {clue:'Two people who should not be together keep finding their way back to each other. The song compares their relationship to gravity — inescapable.',
    song:'Gravity', answers:['Sara Bareilles','John Mayer','Colbie Caillat','Jason Mraz'], correct:0},
@@ -1456,25 +1494,20 @@ function initHost() {
       pub('answer-ack', { id: d.id, pos: p.posThisQ, pts: p.earnedThisQ, correct: !p.idk && d.choice === curQ().correct });
       // Check if everyone has answered
       var allIn = Object.values(hPlayers).every(function(p) { return p.buzzed; });
-      if (allIn) { clearInterval(hTimerID); revealHost(); }
+      if (allIn) { clearInterval(hTimerID); playAllInDing(); revealHost(); }
     });
   });
 }
 
 function preloadWiki() {
+  // Images now use direct Wikimedia Commons URLs — no API needed
+  // Pre-validate that each image loads
   R2_POOL.forEach(function(a) {
-    fetch('https://en.wikipedia.org/w/api.php?action=query&titles=' + a.wiki + '&prop=pageimages&format=json&pithumbsize=500&origin=*')
-      .then(function(r) { return r.json(); })
-      .then(function(d) {
-        var pg = Object.values((d.query || {}).pages || {})[0];
-        if (pg && pg.thumbnail && pg.thumbnail.source) {
-          // Validate image actually loads before caching
-          var testImg = new Image();
-          testImg.onload = function() { wikiCache[a.wiki] = pg.thumbnail.source; };
-          testImg.onerror = function() { wikiCache[a.wiki] = null; }; // mark as failed
-          testImg.src = pg.thumbnail.source;
-        }
-      }).catch(function() {});
+    if (!a.img) return;
+    var t = new Image();
+    t.onload  = function() { wikiCache[a.img] = a.img; };
+    t.onerror = function() { wikiCache[a.img] = null; };
+    t.src = a.img;
   });
 }
 
@@ -1492,11 +1525,12 @@ function hostStart() {
   hRounds = [
     { type: 'r1', questions: shuffle(R1_POOL) },
     { type: 'r2', questions: (function() {
-      // Only include artists whose image loaded successfully
+      // Filter out images that failed to load
       var available = R2_POOL.filter(function(a) {
-        return wikiCache[a.wiki] !== null; // null = failed, undefined = not loaded yet (include optimistically)
+        return a.img && wikiCache[a.img] !== null;
       });
-      return pickWithAntiRepeat(available.length >= 15 ? available : R2_POOL, Math.min(25, R2_POOL.length), 'r2');
+      var pool = available.length >= 15 ? available : R2_POOL;
+      return pickWithAntiRepeat(pool, Math.min(25, pool.length), 'r2');
     })() },
     { type: 'r3', questions: pickWithAntiRepeat(R3_POOL, Math.min(25, R3_POOL.length), 'r3') },
   ];
@@ -1553,25 +1587,15 @@ function renderHostQ() {
     playBgMusic('suspense');
     show('r2-content');
     var img = $('h-aimg');
-    img.classList.remove('revealed'); // reset reveal animation
-    var cached = wikiCache[q.wiki] || '';
-    function startReveal(imgEl, src) {
-      imgEl.src = src;
-      imgEl.onload = function() {
-        // Start reveal animation after tiny delay
-        setTimeout(function() { imgEl.classList.add('revealed'); }, 50);
-      };
-      imgEl.onerror = function() { imgEl.parentElement.style.display = 'none'; };
-    }
-    if (cached) { startReveal(img, cached); }
-    else {
-      fetch('https://en.wikipedia.org/w/api.php?action=query&titles=' + q.wiki + '&prop=pageimages&format=json&pithumbsize=500&origin=*')
-        .then(function(r) { return r.json(); })
-        .then(function(d) {
-          var pg = Object.values((d.query || {}).pages || {})[0];
-          if (pg && pg.thumbnail) { wikiCache[q.wiki] = pg.thumbnail.source; startReveal(img, pg.thumbnail.source); }
-          else { img.parentElement.style.display = 'none'; }
-        }).catch(function() { img.parentElement.style.display = 'none'; });
+    img.classList.remove('revealed');
+    img.parentElement.style.display = 'block';
+    var imgSrc = q.img || '';
+    if (imgSrc && wikiCache[imgSrc] !== null) {
+      img.onload = function() { setTimeout(function() { img.classList.add('revealed'); }, 50); };
+      img.onerror = function() { img.parentElement.style.display = 'none'; };
+      img.src = imgSrc;
+    } else {
+      img.parentElement.style.display = 'none';
     }
     $('h-r2hint').textContent = q.hint || '';
   } else {
@@ -1590,7 +1614,7 @@ function renderHostQ() {
 
   renderScoreCards();
   startTimer(sec);
-  pub('question', { index: hCurrent, round: hRound, type: type, hint: q.hint || '', clue: q.clue || '', img: wikiCache[q.wiki] || '', sc: type === 'r1' ? q.sc : '' });
+  pub('question', { index: hCurrent, round: hRound, type: type, hint: q.hint || '', clue: q.clue || '', img: q.img || '', sc: type === 'r1' ? q.sc : '' });
 }
 
 function startTimer(sec) {
@@ -1619,7 +1643,7 @@ function revealHost() {
     $('sc-iframe').src = '';
     stopBgMusic();
   } else {
-    stopBgMusic();
+    // Keep suspense music playing — add crescendo on top
     playCrescendo();
   }
 
@@ -1705,6 +1729,7 @@ function hostNext() {
 
 function showBetween() {
   hide('hgame'); show('hbetween');
+  playBoxingBell();
   var nextNames = ['Round 2: Who Is This?', 'Round 3: Lyric Clues'];
   $('bt-title').textContent = 'Round ' + (hRound + 1) + ' Complete!';
   $('bt-sub').textContent = 'Up next - ' + nextNames[hRound];
@@ -1726,6 +1751,7 @@ function hostContinue() {
 
 function hostEnd() {
   pub('game-end', { scores: scoreP(), r1Songs: hPlayedR1 });
+  playBoxingBell();
   // Start recall countdown after a short delay
   setTimeout(startRecallCountdown, 2000);
   hide('hgame'); show('hend');
@@ -1742,7 +1768,12 @@ function hostEnd() {
   $('winner-pts').textContent = winner.score + ' pts';
 
   // Results grid
-  var rs = $('recall-section'); if (rs) rs.style.display = 'block';
+  var rs = $('recall-section');
+  if (rs) {
+    rs.style.display = 'block';
+    $('recall-queue-display').textContent = 'Waiting for players to choose songs...';
+    $('recall-now-playing').textContent = '';
+  }
   var grid = $('results-grid'); grid.innerHTML = '';
   var titles = ['ROCK GOD', 'ROCK LEGEND', 'ROCK BEAST'];
   var trophies = ['🥇', '🥈', '🥉'];
@@ -1793,18 +1824,20 @@ var hRecallCountdown = 40;
 var hRecallCountdownID = null;
 
 function handleRecallSubmit(playerId, songs) {
+  if (hRecallSubmitted[playerId]) return; // don't process twice
   hRecallSubmitted[playerId] = true;
-  // Add songs to queue (avoid duplicates)
+  // Add songs to queue (avoid duplicates, maintain order)
   songs.forEach(function(s) {
     if (s.sc && s.song) {
-      var already = hRecallQueue.some(function(q){return q.sc === s.sc;});
+      var already = hRecallQueue.some(function(q) { return q.sc === s.sc; });
       if (!already) hRecallQueue.push({sc: s.sc, song: s.song});
     }
   });
   updateRecallDisplay();
-  // Check if all players submitted
-  var allSubmitted = Object.keys(hPlayers).every(function(id) { return hRecallSubmitted[id]; });
-  if (allSubmitted) {
+  // Check if ALL players have now submitted
+  var totalPlayers = Object.keys(hPlayers).length;
+  var submittedCount = Object.keys(hRecallSubmitted).length;
+  if (submittedCount >= totalPlayers) {
     clearInterval(hRecallCountdownID);
     startRecallPlayback();
   }
@@ -1826,7 +1859,7 @@ function startRecallCountdown() {
 
 function updateHostRecallTimer(secs) {
   var el = $('recall-countdown');
-  if (el) el.textContent = 'Starting in ' + secs + 's...';
+  if (el) el.textContent = secs > 0 ? 'Recall Sing Along Starting in: ' + secs + 's' : 'Starting now!';
 }
 
 function startRecallPlayback() {
@@ -1951,10 +1984,13 @@ function playerJoin() {
     });
     sub('game-end', function(d) {
       playerEnd(d.scores);
-      // After 3 seconds show recall screen
-      setTimeout(function() {
-        showRecallScreen(d.r1Songs || []);
-      }, 3000);
+      // After 4 seconds show recall screen if there are songs to choose
+      var songs = d.r1Songs || [];
+      if (songs.length > 0) {
+        setTimeout(function() {
+          showRecallScreen(songs);
+        }, 4000);
+      }
     });
     sub('recall-done', function() {
       // Queue finished — show play again
@@ -2091,11 +2127,26 @@ function submitRecall() {
   if (pRecallSubmitted) return;
   pRecallSubmitted = true;
   clearInterval(pRecallTimerID);
-  // Send selected songs to host
   var selected = pRecallSongs.filter(function(s) { return pRecallSelected[s.sc]; });
+  // Publish to host
   pub('recall-submit', { id: pID, songs: selected });
+  // Update UI
   var status = $('precall-status');
-  if (status) status.textContent = selected.length ? 'Submitted ' + selected.length + ' song' + (selected.length !== 1 ? 's' : '') + '! Watch the TV 🎵' : 'Submitted! Watching...';
+  if (status) {
+    if (selected.length) {
+      status.textContent = selected.length + ' song' + (selected.length !== 1 ? 's' : '') + ' added to queue! Watch the TV 🎵';
+      status.style.color = 'var(--green)';
+    } else {
+      status.textContent = 'Skipped! Sit back and enjoy 🎶';
+      status.style.color = 'var(--muted)';
+    }
+  }
+  // Disable all song buttons
+  var btns = document.querySelectorAll('#precall-list button');
+  btns.forEach(function(b) { b.disabled = true; b.style.opacity = '0.6'; });
+  // Hide submit buttons
+  var submitBtns = document.querySelectorAll('#precall .btn-submit-area button');
+  submitBtns.forEach(function(b) { b.style.display = 'none'; });
 }
 
 function submitRecallEmpty() {
