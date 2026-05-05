@@ -100,6 +100,11 @@ input{font-family:'DM Sans',sans-serif;}
 /* Hide SoundCloud iframe visually but keep it functional */
 .sc-hide{width:1px;height:1px;overflow:hidden;position:absolute;opacity:0;pointer-events:none;}
 .artist-img{width:100%;max-height:340px;object-fit:contain;object-position:center;display:block;background:#000;}
+.artist-img-wrap{position:relative;width:100%;max-height:340px;overflow:hidden;background:#000;}
+.artist-img-reveal{width:100%;max-height:340px;object-fit:contain;object-position:center;display:block;
+  clip-path:inset(100% 0% 0% 0%);
+  transition:clip-path 5s linear;}
+.artist-img-reveal.revealed{clip-path:inset(0% 0% 0% 0%);}
 .lyric-clue{font-size:18px;line-height:2;color:var(--text);padding:1.5rem 1.75rem;background:var(--surf2);border-left:4px solid var(--gold);font-style:italic;}
 .cbi{padding:1.25rem 1.5rem;}
 
@@ -365,6 +370,8 @@ input{font-family:'DM Sans',sans-serif;}
       </div>
     </div>
     <div class="prog-wrap"><div class="prog-bar" id="prog-bar" style="width:0%"></div></div>
+    <!-- R3 top answer reveal -->
+    <div id="r3-top-reveal" class="hidden" style="background:var(--surf2);border:2px solid var(--gold);border-radius:10px;padding:12px 18px;text-align:center;"></div>
 
     <div class="content-box">
       <!-- R1 -->
@@ -383,7 +390,7 @@ input{font-family:'DM Sans',sans-serif;}
       </div>
       <!-- R2 -->
       <div id="r2-content" class="hidden">
-        <img id="h-aimg" class="artist-img" src="" alt="Mystery artist" onerror="this.style.display='none'">
+        <div class="artist-img-wrap"><img id="h-aimg" class="artist-img-reveal" src="" alt="Mystery artist" onerror="this.parentElement.style.display='none'"></div>
         <div class="cbi">
           <div style="font-size:12px;letter-spacing:2px;text-transform:uppercase;color:var(--muted);margin-bottom:6px;">Who is this artist?</div>
           <div style="font-size:18px;font-weight:600;" id="h-r2hint">—</div>
@@ -419,7 +426,11 @@ input{font-family:'DM Sans',sans-serif;}
       <div style="font-family:Bebas Neue,sans-serif;font-size:22px;color:var(--gold);margin-bottom:4px;letter-spacing:2px;">🎤 READY RECALL QUEUE</div>
       <div id="recall-countdown" style="font-size:14px;color:var(--gold);margin-bottom:6px;"></div>
       <div id="recall-queue-display" style="font-size:14px;color:var(--muted);margin-bottom:8px;">Waiting for players to choose songs...</div>
-      <div id="recall-now-playing" style="font-size:16px;color:var(--green);font-weight:600;min-height:22px;margin-bottom:8px;"></div>
+      <div id="recall-now-playing" style="font-size:16px;color:var(--green);font-weight:600;min-height:22px;margin-bottom:4px;"></div>
+      <!-- Recall SC player lives here so it works even when hgame is hidden -->
+      <div style="width:100%;background:#000;border-radius:8px;overflow:hidden;">
+        <iframe id="recall-sc-iframe" allow="autoplay" src="" height="80" scrolling="no" frameborder="no" style="width:100%;border:none;display:block;"></iframe>
+      </div>
     </div>
     <button class="btn-ghost" style="margin-top:1rem;font-size:17px;" onclick="location.reload()">Play Again 🎵</button>
   </div>
@@ -1262,13 +1273,13 @@ var R3_POOL = [
   {clue:'Someone keeps calling late at night. The narrator is heartbroken but pretends to be fine. Minimalist beat, hook sticks instantly.',
    song:'Hotline Bling', answers:['Future','Drake','The Weeknd','Post Malone'], correct:1},
   // ── EXPANDED BATCH 2 ──
-  {clue:'A young woman escapes an abusive relationship and drives away in the rain. She calls her mother crying. The production is sparse and emotional.',
+  {clue:'A woman drives away from a bad relationship in the rain and calls her mother. The song title is a symbol of surrender that she refuses to show.',
    song:'White Flag', answers:['Dido','Sia','Adele','Florence Welch'], correct:0},
   {clue:'Someone describes the feeling of falling in love for the first time as terrifying and wonderful all at once. Every sound becomes music.',
    song:'Cant Help Falling In Love', answers:['Frank Sinatra','Elvis Presley','Dean Martin','Roy Orbison'], correct:1},
-  {clue:'A person lists everything wrong with themselves in a matter-of-fact tone but insists they are still worthy of love. The tone is defiant.',
+  {clue:'A body-positive hit by Meghan Trainor about loving your curves. The title refers to a musical feature — the low-frequency instrument in a song.',
    song:'All About That Bass', answers:['Katy Perry','Meghan Trainor','Lizzo','Adele'], correct:1},
-  {clue:'Someone has been told their whole life to be quiet and small. The chorus is an explosion of refusal — they are not going to dim their light anymore.',
+  {clue:'A pop anthem where the singer gets knocked down by critics and haters but keeps getting back up. The chorus is an animal sound repeated in the title.',
    song:'Roar', answers:['Pink','Katy Perry','Kelly Clarkson','Kesha'], correct:1},
   {clue:'The narrator watches a beautiful sunset from a moving car and thinks about someone they miss terribly. The instrumentation is warm and nostalgic.',
    song:'Fast Car', answers:['Joni Mitchell','Tracy Chapman','Sheryl Crow','Sarah McLachlan'], correct:1},
@@ -1282,7 +1293,7 @@ var R3_POOL = [
    song:'Slide', answers:['Frank Ocean','Daniel Caesar','H.E.R.','dvsn'], correct:0},
   {clue:'A man describes watching the woman he loves marry someone else. He stands at the back of the church and says nothing. The melody is devastating.',
    song:'She Used To Be Mine', answers:['Gavin DeGraw','Josh Groban','James Blunt','Train'], correct:2},
-  {clue:'Two former lovers run into each other at a grocery store years later. The narrator notices the other person looks happy. Bittersweet and quiet.',
+  {clue:'A classic Lauryn Hill R&B song about being unable to stop thinking about an ex. The title refers to an element that connects two things.',
    song:'Ex Factor', answers:['Alicia Keys','Lauryn Hill','Erykah Badu','Jill Scott'], correct:1},
   {clue:'The singer describes being raised in a town with nothing to do and music being the only escape. Every weekend was the same party until someone left.',
    song:'Small Town', answers:['John Cougar Mellencamp','Tom Petty','Bruce Springsteen','Bob Seger'], correct:0},
@@ -1312,7 +1323,7 @@ var R3_POOL = [
    song:'One Dance', answers:['Drake','The Weeknd','Travis Scott','Future'], correct:0},
   {clue:'The narrator describes their hometown as a place they could not wait to leave but now miss desperately. The song is a love letter to a small city.',
    song:'Take Me Home Country Roads', answers:['John Denver','James Taylor','Jim Croce','Cat Stevens'], correct:0},
-  {clue:'Someone describes the sensation of floating just above reality — everything looks normal but feels like a dream. The production has an ethereal quality.',
+  {clue:'A Dua Lipa disco-pop hit about feeling so good in love that you feel weightless. The title is a word meaning to float or rise into the air.',
    song:'Levitating', answers:['Ariana Grande','Dua Lipa','Charli XCX','Bebe Rexha'], correct:1},
   {clue:'The narrator is at a crossroads and asks for a sign from the universe. The song features handclaps and a gospel choir in the final chorus.',
    song:'What Goes Around', answers:['Usher','Justin Timberlake','Robin Thicke','John Legend'], correct:1},
@@ -1434,8 +1445,7 @@ function initHost() {
         p.posThisQ = pos;
         p.streak++;
         p.maxStreak = Math.max(p.maxStreak, p.streak);
-        // Ping for 1st, 2nd, 3rd correct answers
-        if (pos <= 3) playPing(pos);
+
       } else {
         p.streak = 0;
         p.earnedThisQ = 0;
@@ -1457,7 +1467,13 @@ function preloadWiki() {
       .then(function(r) { return r.json(); })
       .then(function(d) {
         var pg = Object.values((d.query || {}).pages || {})[0];
-        if (pg && pg.thumbnail) wikiCache[a.wiki] = pg.thumbnail.source;
+        if (pg && pg.thumbnail && pg.thumbnail.source) {
+          // Validate image actually loads before caching
+          var testImg = new Image();
+          testImg.onload = function() { wikiCache[a.wiki] = pg.thumbnail.source; };
+          testImg.onerror = function() { wikiCache[a.wiki] = null; }; // mark as failed
+          testImg.src = pg.thumbnail.source;
+        }
       }).catch(function() {});
   });
 }
@@ -1475,7 +1491,13 @@ function hostStart() {
   stopBgMusic();
   hRounds = [
     { type: 'r1', questions: shuffle(R1_POOL) },
-    { type: 'r2', questions: pickWithAntiRepeat(R2_POOL, Math.min(25, R2_POOL.length), 'r2') },
+    { type: 'r2', questions: (function() {
+      // Only include artists whose image loaded successfully
+      var available = R2_POOL.filter(function(a) {
+        return wikiCache[a.wiki] !== null; // null = failed, undefined = not loaded yet (include optimistically)
+      });
+      return pickWithAntiRepeat(available.length >= 15 ? available : R2_POOL, Math.min(25, R2_POOL.length), 'r2');
+    })() },
     { type: 'r3', questions: pickWithAntiRepeat(R3_POOL, Math.min(25, R3_POOL.length), 'r3') },
   ];
   hRound = 0; hCurrent = 0;
@@ -1518,7 +1540,7 @@ function renderHostQ() {
   $('dec-tag').textContent  = q.decade || q.hint || '';
   $('prog-bar').style.width = Math.round((hCurrent / total) * 100) + '%';
   $('feedback').textContent = ''; $('feedback').className = 'feedback';
-  hide('song-reveal'); hide('next-btn');
+  hide('song-reveal'); hide('next-btn'); hide('r3-top-reveal');
 
   hide('r1-content'); hide('r2-content'); $('r3-content').classList.add('hidden');
 
@@ -1531,16 +1553,25 @@ function renderHostQ() {
     playBgMusic('suspense');
     show('r2-content');
     var img = $('h-aimg');
+    img.classList.remove('revealed'); // reset reveal animation
     var cached = wikiCache[q.wiki] || '';
-    if (cached) { img.src = cached; img.style.display = 'block'; }
+    function startReveal(imgEl, src) {
+      imgEl.src = src;
+      imgEl.onload = function() {
+        // Start reveal animation after tiny delay
+        setTimeout(function() { imgEl.classList.add('revealed'); }, 50);
+      };
+      imgEl.onerror = function() { imgEl.parentElement.style.display = 'none'; };
+    }
+    if (cached) { startReveal(img, cached); }
     else {
-      img.style.display = 'none';
       fetch('https://en.wikipedia.org/w/api.php?action=query&titles=' + q.wiki + '&prop=pageimages&format=json&pithumbsize=500&origin=*')
         .then(function(r) { return r.json(); })
         .then(function(d) {
           var pg = Object.values((d.query || {}).pages || {})[0];
-          if (pg && pg.thumbnail) { wikiCache[q.wiki] = pg.thumbnail.source; img.src = pg.thumbnail.source; img.style.display = 'block'; }
-        }).catch(function() {});
+          if (pg && pg.thumbnail) { wikiCache[q.wiki] = pg.thumbnail.source; startReveal(img, pg.thumbnail.source); }
+          else { img.parentElement.style.display = 'none'; }
+        }).catch(function() { img.parentElement.style.display = 'none'; });
     }
     $('h-r2hint').textContent = q.hint || '';
   } else {
@@ -1607,7 +1638,13 @@ function revealHost() {
   // Show song name — always. R3 shows song + artist
   var revealHTML = '';
   if (revType === 'r3') {
-    revealHTML = '<div style="font-size:22px;font-weight:700;color:var(--gold);margin-bottom:4px;">🎵 ' + (q.song||'') + '</div><div style="font-size:16px;color:var(--text);">Artist: <strong>' + (q.answers[q.correct]||'') + '</strong></div>';
+    revealHTML = '<strong style="font-size:20px;">' + (q.song||'') + '</strong>';
+    // Show big answer at TOP of screen
+    var topEl = $('r3-top-reveal');
+    if (topEl) {
+      topEl.innerHTML = '<div style="font-size:13px;letter-spacing:2px;text-transform:uppercase;color:var(--muted);margin-bottom:4px;">The Answer</div><div style="font-family:Bebas Neue,sans-serif;font-size:36px;color:var(--gold);letter-spacing:2px;">' + (q.song||'') + '</div><div style="font-size:16px;color:var(--text);margin-top:4px;">Artist: <strong>' + (q.answers[q.correct]||'') + '</strong></div>';
+      show('r3-top-reveal');
+    }
   } else {
     revealHTML = '<strong style="font-size:20px;">' + (q.song||'') + '</strong>';
   }
@@ -1834,14 +1871,14 @@ function playNextRecall() {
   var next = hRecallQueue.shift();
   var nowEl = $('recall-now-playing');
   if (nowEl) nowEl.textContent = 'Now playing: ' + next.song;
-  // Play on host
-  show('r1-content');
-  $('sc-iframe').src = buildSCEmbed(next.sc);
+  // Use the dedicated recall player iframe (visible in #hend screen)
+  var recallFrame = $('recall-sc-iframe');
+  if (recallFrame) recallFrame.src = buildSCEmbed(next.sc);
   updateRecallDisplay();
-  // After 31 seconds, play next
+  // After 33 seconds move to next
   setTimeout(function() {
     if (hRecallPlaying) playNextRecall();
-  }, 31000);
+  }, 33000);
 }
 
 /* ══════════════════════════════════════════
@@ -1927,8 +1964,8 @@ function playerJoin() {
     sub('singalong-request', function(d) {
       // Player requested sing-along — play SC embed on host
       if (d.sc) {
-        $('sc-iframe').src = buildSCEmbed(d.sc);
-        show('r1-content');
+        var rf = $('recall-sc-iframe');
+        if (rf) rf.src = buildSCEmbed(d.sc);
       }
     });
     sub('recall-submit', function(d) {
