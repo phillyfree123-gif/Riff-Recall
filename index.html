@@ -131,7 +131,7 @@ input{font-family:'DM Sans',sans-serif;}
 .feedback{text-align:center;font-size:18px;font-weight:600;min-height:24px;}
 .feedback.good{color:var(--green);}
 .feedback.bad{color:var(--red);}
-.song-reveal{text-align:center;font-size:15px;color:var(--muted);margin-top:4px;min-height:20px;}
+.song-reveal{text-align:center;font-size:15px;color:var(--muted);margin-top:6px;min-height:24px;padding:6px 0;}
 .song-reveal strong{color:var(--text);}
 .next-btn{align-self:center;background:var(--gold);color:#111;border:none;border-radius:10px;padding:14px 36px;font-size:17px;font-weight:700;transition:opacity .15s;margin-top:.25rem;}
 .next-btn:hover{opacity:.85;}
@@ -247,6 +247,25 @@ input{font-family:'DM Sans',sans-serif;}
     <button class="btn-ghost" style="font-size:20px;padding:18px 52px;" onclick="startPlayer()">Join as Player</button>
   </div>
   <div style="font-size:13px;color:var(--muted);">Open on TV to host · Open on phone to join</div>
+</div>
+
+<!-- GENRE SELECT (shown when enough songs exist per genre) -->
+<div id="genre-screen" class="hidden">
+  <div style="min-height:100vh;display:flex;flex-direction:column;align-items:center;padding:2rem;gap:1.5rem;overflow-y:auto;">
+    <div style="font-family:'Bebas Neue',sans-serif;font-size:56px;color:var(--gold);letter-spacing:3px;text-align:center;line-height:1;">Riff <span style="color:#fff;">&amp;</span> Recall</div>
+    <div style="font-size:14px;color:var(--muted);letter-spacing:2px;text-transform:uppercase;text-align:center;">Choose Your Genres</div>
+    <div style="font-size:14px;color:var(--text);text-align:center;max-width:500px;line-height:1.7;">Pick the genres you want in your game. The more you pick the bigger the song pool!</div>
+
+    <div id="genre-grid" style="display:grid;grid-template-columns:1fr 1fr;gap:12px;width:100%;max-width:600px;">
+      <!-- Genre buttons rendered by JS -->
+    </div>
+
+    <div style="display:flex;flex-direction:column;gap:10px;width:100%;max-width:600px;margin-top:.5rem;">
+      <button onclick="selectAllGenres()" style="background:var(--surf2);color:var(--muted);border:1px solid var(--border);border-radius:10px;padding:12px;font-size:14px;cursor:pointer;">Select All Genres</button>
+      <button id="genre-continue-btn" onclick="continueFromGenres()" style="background:var(--gold);color:#111;border:none;border-radius:10px;padding:16px;font-size:18px;font-weight:700;cursor:pointer;opacity:.4;" disabled>Let's Play! 🎵</button>
+    </div>
+    <div style="font-size:12px;color:var(--muted);text-align:center;">Coming soon: more genres as the song library grows!</div>
+  </div>
 </div>
 
 <!-- ABOUT PAGE -->
@@ -480,8 +499,8 @@ input{font-family:'DM Sans',sans-serif;}
     </div>
     <div id="precall-list" style="width:100%;display:flex;flex-direction:column;gap:10px;margin-bottom:1rem;"></div>
     <div style="display:flex;flex-direction:column;gap:10px;">
-      <button onclick="submitRecall()" style="background:var(--gold);color:#111;border:none;border-radius:10px;padding:16px;font-size:17px;font-weight:700;width:100%;">Submit My Songs ✓</button>
-      <button onclick="submitRecallEmpty()" style="background:var(--surf2);color:var(--muted);border:1px solid var(--border);border-radius:10px;padding:14px;font-size:14px;width:100%;">😴 I'm boring, I don't want to add any songs</button>
+      <button onclick="submitRecall()" style="background:var(--gold);color:#111;border:none;border-radius:10px;padding:16px;font-size:17px;font-weight:700;width:100%;">Add to Queue ✓</button>
+      <button onclick="submitRecallEmpty()" style="background:var(--surf2);color:var(--muted);border:1px solid var(--border);border-radius:10px;padding:14px;font-size:14px;width:100%;">😴 Skip — I'm good</button>
     </div>
     <div id="precall-status" style="font-size:13px;color:var(--green);text-align:center;margin-top:.75rem;min-height:18px;"></div>
   </div>
@@ -500,11 +519,12 @@ var COLORS = ['#F5C842','#4CAF50','#E8334A','#5B9CF6','#C97BE8','#FF8C42','#5DCA
 var LTRS = ['A','B','C','D'];
 
 /* ══════════════════════════════════════════
-   AUDIO ENGINE — Rich Web Audio music
-   Styles: lobby | intro | suspense | results | singalong
+   AUDIO ENGINE v3 — Sophisticated Web Audio
+   Real chord voicings, swing, countermelody
 ══════════════════════════════════════════ */
 var audioCtx = null;
 var bgScheduled = [], bgGain = null, bgRunning = false;
+var bgLoopTimer = null;
 
 function getCtx() {
   if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
@@ -513,209 +533,438 @@ function getCtx() {
 
 function stopBgMusic() {
   bgRunning = false;
-  bgScheduled.forEach(function(n) { try { n.stop(); } catch(e) {} });
+  clearTimeout(bgLoopTimer);
+  bgScheduled.forEach(function(n) { try { n.stop(0); } catch(e) {} });
   bgScheduled = [];
-  if (bgGain) { try { bgGain.disconnect(); } catch(e) {} bgGain = null; }
+  if (bgGain) {
+    try {
+      bgGain.gain.setTargetAtTime(0, getCtx().currentTime, 0.15);
+      setTimeout(function() { try { bgGain.disconnect(); } catch(e) {} bgGain = null; }, 300);
+    } catch(e) { bgGain = null; }
+  }
 }
 
-// Play a note: freq, start, dur, type, gainVal, ctx, masterGain
-function note(ctx, mg, freq, start, dur, type, vol) {
-  if (!bgRunning) return;
-  var osc = ctx.createOscillator();
-  var g   = ctx.createGain();
-  osc.type = type || 'sine';
-  osc.frequency.setValueAtTime(freq, start);
+/* Create an oscillator with envelope */
+function osc(ctx, dest, freq, start, dur, type, peak, attack, release) {
+  if (!bgRunning || freq <= 0) return;
+  attack  = attack  || 0.02;
+  release = release || 0.08;
+  peak    = peak    || 0.25;
+  var o = ctx.createOscillator();
+  var g = ctx.createGain();
+  o.type = type || 'sine';
+  o.frequency.setValueAtTime(freq, start);
   g.gain.setValueAtTime(0, start);
-  g.gain.linearRampToValueAtTime(vol || 0.3, start + 0.015);
-  g.gain.exponentialRampToValueAtTime(0.001, start + dur * 0.85);
-  osc.connect(g); g.connect(mg);
-  osc.start(start); osc.stop(start + dur);
-  bgScheduled.push(osc);
+  g.gain.linearRampToValueAtTime(peak, start + attack);
+  g.gain.setValueAtTime(peak, start + dur - release);
+  g.gain.exponentialRampToValueAtTime(0.0001, start + dur);
+  o.connect(g); g.connect(dest);
+  o.start(start); o.stop(start + dur + 0.01);
+  bgScheduled.push(o);
 }
 
-// Chord: play multiple freqs at once
-function chord(ctx, mg, freqs, start, dur, type, vol) {
-  freqs.forEach(function(f) { note(ctx, mg, f, start, dur, type, (vol||0.2)/freqs.length); });
+/* Detune-layered pad for richness */
+function pad(ctx, dest, freq, start, dur, peak) {
+  if (!bgRunning) return;
+  [-8, 0, 8].forEach(function(cents) {
+    var o = ctx.createOscillator();
+    var g = ctx.createGain();
+    o.type = 'sine';
+    o.frequency.setValueAtTime(freq, start);
+    o.detune.setValueAtTime(cents, start);
+    g.gain.setValueAtTime(0, start);
+    g.gain.linearRampToValueAtTime((peak||0.12)/3, start + 0.15);
+    g.gain.setValueAtTime((peak||0.12)/3, start + dur - 0.2);
+    g.gain.exponentialRampToValueAtTime(0.0001, start + dur + 0.1);
+    o.connect(g); g.connect(dest);
+    o.start(start); o.stop(start + dur + 0.2);
+    bgScheduled.push(o);
+  });
+}
+
+/* Full chord with spread voicing */
+function chord(ctx, dest, freqs, start, dur, type, peak, attack) {
+  freqs.forEach(function(f) { osc(ctx, dest, f, start, dur, type, (peak||0.18)/freqs.length, attack||0.03, 0.1); });
+}
+
+/* Swing 16th subdivisions: returns array of time offsets */
+function swing16(beat, swingRatio) {
+  swingRatio = swingRatio || 0.62; // 62/38 swing feel
+  var s = [];
+  for (var i = 0; i < 4; i++) {
+    s.push(i * beat);
+    s.push(i * beat + beat * swingRatio);
+  }
+  return s;
 }
 
 function playBgMusic(style) {
   stopBgMusic();
-  var ctx = getCtx();
-  if (ctx.state === 'suspended') ctx.resume();
-  bgGain = ctx.createGain();
-  // Add reverb-like feel with a slight delay
-  bgGain.gain.setValueAtTime(0.0, ctx.currentTime);
-  bgGain.gain.linearRampToValueAtTime(style === 'suspense' ? 0.10 : 0.13, ctx.currentTime + 0.5);
-  bgGain.connect(ctx.destination);
-  bgRunning = true;
+  setTimeout(function() {
+    var ctx = getCtx();
+    if (ctx.state === 'suspended') ctx.resume();
+    bgGain = ctx.createGain();
+    // Volume: 0.16 for suspense, 0.20 for others (between old iterations)
+    var vol = style === 'suspense' ? 0.16 : 0.20;
+    bgGain.gain.setValueAtTime(0, ctx.currentTime);
+    bgGain.gain.linearRampToValueAtTime(vol, ctx.currentTime + 1.2);
+    bgGain.connect(ctx.destination);
+    bgRunning = true;
 
-  if (style === 'lobby') scheduleLobby(ctx, bgGain);
-  else if (style === 'intro') scheduleIntro(ctx, bgGain);
-  else if (style === 'suspense') scheduleSuspense(ctx, bgGain);
-  else if (style === 'results') scheduleResults(ctx, bgGain);
-  else if (style === 'singalong') scheduleSingalong(ctx, bgGain);
+    if      (style === 'lobby')     scheduleLobby(ctx, bgGain);
+    else if (style === 'intro')     scheduleIntro(ctx, bgGain);
+    else if (style === 'suspense')  scheduleSuspense(ctx, bgGain);
+    else if (style === 'results')   scheduleResults(ctx, bgGain);
+    else if (style === 'singalong') scheduleSingalong(ctx, bgGain);
+  }, 50);
 }
 
-/* ── LOBBY: Funky groovy waiting music ── */
+/* ── LOBBY: Sophisticated jazz-funk groove ──
+   Cmaj7 → Am7 → Fmaj7 → G7 vamp
+   Swing 8ths, walking bass, piano-style voicings, melody ── */
 function scheduleLobby(ctx, mg) {
-  var bpm = 112, b = 60/bpm;
-  // Bass line in C major pentatonic
-  var bass = [65,65,73,65,  65,82,73,65,  65,65,73,87,  82,73,65,55];
-  // Chords: C maj, F maj, G maj, Am
-  var chords = [[131,165,196],[175,220,262],[196,247,294],[110,131,165]];
-  var chordDur = b * 8;
-  var t = ctx.currentTime + 0.1;
+  var bpm = 108, b = 60/bpm, t0 = ctx.currentTime + 0.1;
+  var bar = b * 4; // 4 beats per bar
 
-  function loop() {
-    if (!bgRunning) return;
-    // Bass line
-    bass.forEach(function(f, i) { note(ctx, mg, f, t + i*b, b*0.7, 'triangle', 0.35); });
-    // Chords every 2 bars
-    chords.forEach(function(c, i) { chord(ctx, mg, c, t + i*chordDur, chordDur*0.85, 'sine', 0.22); });
-    // Hi melodic arp
-    var mel = [523,659,784,659,523,440,523,587,659,784,880,784,659,587,523,440];
-    mel.forEach(function(f, i) { note(ctx, mg, f, t + i*b*0.5, b*0.4, 'triangle', 0.12); });
-    var loopLen = bass.length * b;
-    t += loopLen;
-    if (bgRunning) bgScheduled.push({stop: function(){}});
-    setTimeout(function() { if (bgRunning) loop(); }, (loopLen - 0.3) * 1000);
-  }
-  loop();
-}
-
-/* ── INTRO: Upbeat triumphant fanfare ── */
-function scheduleIntro(ctx, mg) {
-  var bpm = 128, b = 60/bpm;
-  // Classic I-IV-V-I in C
-  var mel = [523,523,659,523,784,698,523,  523,523,659,523,880,784,0,
-             523,523,1047,880,784,698,659,  698,698,784,698,880,784,0];
-  var t = ctx.currentTime + 0.1;
-  function loop() {
-    if (!bgRunning) return;
-    // Melody
-    mel.forEach(function(f, i) {
-      if (f > 0) note(ctx, mg, f, t + i*b*0.5, b*0.42, 'square', 0.15);
-    });
-    // Bass walk
-    var bassNotes = [131,165,196,175,131,165,196,220,131,196,262,196,175,131,110,131];
-    bassNotes.forEach(function(f, i) { note(ctx, mg, f, t + i*b, b*0.8, 'triangle', 0.28); });
-    // Rhythm chords
-    [[262,330,392],[349,440,523],[392,494,587],[262,330,392]].forEach(function(c, i) {
-      chord(ctx, mg, c, t + i*b*4, b*3.5, 'sine', 0.18);
-    });
-    var loopLen = bassNotes.length * b;
-    t += loopLen;
-    setTimeout(function() { if (bgRunning) loop(); }, (loopLen - 0.3) * 1000);
-  }
-  loop();
-}
-
-/* ── SUSPENSE: Cinematic tension music for R2 & R3 ── */
-function scheduleSuspense(ctx, mg) {
-  var bpm = 70, b = 60/bpm;
-  // Ominous minor chord pulses + rising string-like sweeps
-  var minorChords = [
-    [110,131,165],  // Am
-    [98,123,147],   // Gm
-    [116,138,174],  // Bbm
-    [110,138,164],  // Am7
+  // Chord sequence (8 bars loop): Cmaj7 Am7 Fmaj7 G7 (x2)
+  var progression = [
+    {root:130.8, chord:[130.8,164.8,196.0,246.9,329.6], name:'Cmaj7'},  // C E G B E
+    {root:110.0, chord:[110.0,130.8,164.8,196.0,261.6], name:'Am7'},    // A C E G C
+    {root:174.6, chord:[174.6,220.0,261.6,329.6,349.2], name:'Fmaj7'},  // F A C E F
+    {root:196.0, chord:[196.0,246.9,293.7,349.2,392.0], name:'G7'},     // G B D F G
   ];
-  var t = ctx.currentTime + 0.1;
 
-  function loop() {
+  // Walking bass line (quarter notes, 2 bars each chord)
+  var bassLines = {
+    'Cmaj7': [130.8, 146.8, 164.8, 174.6, 196.0, 174.6, 164.8, 146.8],
+    'Am7':   [110.0, 123.5, 130.8, 146.8, 164.8, 146.8, 130.8, 123.5],
+    'Fmaj7': [174.6, 185.0, 196.0, 207.7, 220.0, 207.7, 196.0, 185.0],
+    'G7':    [196.0, 207.7, 220.0, 246.9, 261.6, 246.9, 220.0, 207.7],
+  };
+
+  // Melody: funky riff that works over the whole progression
+  var melFreqs = [
+    523.3,0,587.3,523.3, 493.9,0,440.0,0,    // bar 1-2
+    392.0,0,440.0,493.9, 523.3,0,587.3,0,    // bar 3-4
+    659.3,0,587.3,523.3, 493.9,0,523.3,0,    // bar 5-6
+    440.0,0,493.9,440.0, 392.0,0,0,0,        // bar 7-8
+  ];
+
+  function loop(t) {
     if (!bgRunning) return;
-    // Pulsing minor chords
-    minorChords.forEach(function(c, i) {
-      for (var pulse = 0; pulse < 4; pulse++) {
-        var pt = t + i*b*4 + pulse*b;
-        chord(ctx, mg, c, pt, b*0.4, 'sine', 0.25);
-        // Low rumble
-        note(ctx, mg, c[0]*0.5, pt, b*0.9, 'triangle', 0.18);
+    // Pad chords (half note per chord, slight swing)
+    progression.forEach(function(ch, ci) {
+      var ct = t + ci * bar * 2;
+      ch.chord.forEach(function(f) { pad(ctx, mg, f, ct, bar*1.9, 0.055); });
+      pad(ctx, mg, f*2, ct, bar*1.9, 0.03);
+    });
+
+    // Walking bass
+    progression.forEach(function(ch, ci) {
+      var bl = bassLines[ch.name];
+      bl.forEach(function(f, bi) {
+        osc(ctx, mg, f, t + ci*bar*2 + bi*b, b*0.75, 'triangle', 0.32, 0.01, 0.1);
+        // Bass octave reinforcement on beat 1
+        if (bi === 0) osc(ctx, mg, f*0.5, t + ci*bar*2, b*0.5, 'sine', 0.18, 0.01, 0.15);
+      });
+    });
+
+    // Funky melody with swing 8ths
+    var melBar = bar * 8;
+    melFreqs.forEach(function(f, i) {
+      if (f > 0) {
+        var swing = (i % 2 === 1) ? b * 0.08 : 0; // swing feel
+        osc(ctx, mg, f, t + i*(b*0.5) + swing, b*0.38, 'triangle', 0.14, 0.01, 0.06);
+        // Add a harmony a third below on strong beats
+        if (i % 4 === 0 && f > 0) {
+          osc(ctx, mg, f * 0.794, t + i*(b*0.5), b*0.35, 'sine', 0.06, 0.02, 0.08);
+        }
       }
     });
-    // Rising sweep melody (tension-building)
-    var sweep = [220,233,247,262,277,294,311,330,349,370,392,415,440,466,494,523];
-    sweep.forEach(function(f, i) {
-      note(ctx, mg, f, t + i*b*0.5, b*0.6, 'sine', 0.08);
+
+    // Rhythm: funky 16th-note chord stabs on the off-beats
+    [0,1,2,3].forEach(function(barNum) {
+      var ch = progression[barNum % 4];
+      var bt = t + barNum * bar * 2;
+      [b*0.5, b*1.5, b*2.5, b*3.5, b*4.5, b*5.5, b*6.5, b*7.5].forEach(function(offset) {
+        // Staccato chord stabs
+        chord(ctx, mg, ch.chord.slice(1,4), bt + offset, b*0.18, 'sine', 0.08, 0.01);
+      });
     });
-    // Heartbeat-like bass
-    [0,0.35,2,2.35,4,4.35,6,6.35,8,8.35,10,10.35,12,12.35,14,14.35].forEach(function(offset) {
-      note(ctx, mg, 55, t + offset*b*0.5, b*0.25, 'triangle', 0.3);
-    });
-    var loopLen = minorChords.length * 4 * b;
-    t += loopLen;
-    setTimeout(function() { if (bgRunning) loop(); }, (loopLen - 0.3) * 1000);
+
+    var loopLen = bar * 8;
+    bgLoopTimer = setTimeout(function() { if (bgRunning) loop(t + loopLen); }, (loopLen - 0.5) * 1000);
   }
-  loop();
+  loop(t0);
 }
 
-/* ── RESULTS: Victory fanfare ── */
+/* ── INTRO/ABOUT: Upbeat big band-style fanfare ──
+   F major, bright and energetic, 132 BPM ── */
+function scheduleIntro(ctx, mg) {
+  var bpm = 132, b = 60/bpm, t0 = ctx.currentTime + 0.1;
+  var bar = b * 4;
+
+  // Chord progression: F Bb C F | Dm Gm C F
+  var prog = [
+    [174.6, 220.0, 261.6, 349.2],   // F major
+    [233.1, 293.7, 349.2, 440.0],   // Bb major
+    [261.6, 329.6, 392.0, 523.3],   // C major
+    [174.6, 220.0, 261.6, 349.2],   // F major
+    [146.8, 174.6, 220.0, 293.7],   // Dm
+    [196.0, 246.9, 293.7, 392.0],   // Gm
+    [261.6, 329.6, 392.0, 493.9],   // C7
+    [174.6, 220.0, 261.6, 349.2],   // F
+  ];
+
+  // Brass-like melody (octave doubled)
+  var mel = [
+    349.2,0,440.0,523.3,  587.3,523.3,0,349.2,
+    440.0,0,523.3,587.3,  698.5,587.3,523.3,440.0,
+    523.3,0,659.3,784.0,  880.0,784.0,659.3,523.3,
+    659.3,0,523.3,440.0,  349.2,0,0,0,
+    440.0,0,523.3,440.0,  392.0,0,349.2,0,
+    523.3,0,587.3,523.3,  493.9,0,440.0,0,
+    392.0,0,440.0,493.9,  523.3,587.3,659.3,698.5,
+    784.0,0,0,0,          0,0,0,0,
+  ];
+
+  function loop(t) {
+    if (!bgRunning) return;
+    // Full chords on strong beats
+    prog.forEach(function(ch, i) {
+      chord(ctx, mg, ch, t + i*bar, bar*0.92, 'sine', 0.22, 0.04);
+      // Octave bass
+      osc(ctx, mg, ch[0]*0.5, t + i*bar, bar*0.85, 'triangle', 0.28, 0.02, 0.1);
+      // Off-beat stabs (beats 2 and 4)
+      osc(ctx, mg, ch[0], t + i*bar + b, b*0.15, 'square', 0.08, 0.01, 0.05);
+      osc(ctx, mg, ch[0], t + i*bar + b*3, b*0.15, 'square', 0.08, 0.01, 0.05);
+    });
+    // Melody with octave doubling
+    mel.forEach(function(f, i) {
+      if (f > 0) {
+        osc(ctx, mg, f, t + i*(b*0.5), b*0.38, 'square', 0.13, 0.01, 0.06);
+        osc(ctx, mg, f*2, t + i*(b*0.5), b*0.35, 'sine', 0.05, 0.01, 0.05);
+      }
+    });
+    var loopLen = bar * 8;
+    bgLoopTimer = setTimeout(function() { if (bgRunning) loop(t + loopLen); }, (loopLen - 0.5) * 1000);
+  }
+  loop(t0);
+}
+
+/* ── SUSPENSE: Cinematic thriller tension ──
+   Dm, Bb/D, A7/C#, Dm — heartbeat, rising sweeps, tremolo strings ── */
+function scheduleSuspense(ctx, mg) {
+  var bpm = 76, b = 60/bpm, t0 = ctx.currentTime + 0.1;
+  var bar = b * 4;
+
+  function loop(t) {
+    if (!bgRunning) return;
+    var loopBars = 8;
+
+    // Heartbeat bass (two hits close together)
+    for (var beat = 0; beat < loopBars * 4; beat++) {
+      var bt = t + beat * b;
+      osc(ctx, mg, 55.0, bt,        b*0.18, 'sine', 0.38, 0.005, 0.1);
+      osc(ctx, mg, 55.0, bt + b*0.2, b*0.12, 'sine', 0.22, 0.005, 0.08);
+    }
+
+    // Tremolo string pads — minor chords
+    var minorChords = [
+      [146.8, 174.6, 220.0],  // Dm
+      [174.6, 220.0, 261.6],  // F
+      [138.6, 174.6, 207.7],  // C#dim
+      [146.8, 174.6, 220.0],  // Dm
+    ];
+    minorChords.forEach(function(ch, ci) {
+      // Tremolo effect: rapid volume oscillation
+      for (var tr = 0; tr < 16; tr++) {
+        ch.forEach(function(f) {
+          osc(ctx, mg, f, t + ci*2*bar + tr*(b*0.5), b*0.45, 'sine', 0.12 * (tr % 2 === 0 ? 1 : 0.5), 0.01, 0.05);
+        });
+      }
+    });
+
+    // Rising chromatic sweep (builds tension)
+    var sweepStart = t + loopBars * bar * 0.6;
+    [220,233,247,261,277,294,311,330,349,370,392,415,440,466,494,523].forEach(function(f, i) {
+      osc(ctx, mg, f, sweepStart + i*0.12, 0.25, 'sine', 0.06 + i*0.004, 0.02, 0.08);
+    });
+
+    // Pizzicato plucks on offbeats
+    for (var pk = 0; pk < loopBars * 4; pk++) {
+      if (pk % 2 === 1) {
+        osc(ctx, mg, 146.8, t + pk*b + b*0.5, b*0.08, 'triangle', 0.15, 0.001, 0.04);
+      }
+    }
+
+    var loopLen = bar * loopBars;
+    bgLoopTimer = setTimeout(function() { if (bgRunning) loop(t + loopLen); }, (loopLen - 0.5) * 1000);
+  }
+  loop(t0);
+}
+
+/* ── RESULTS: Epic victory anthem ──
+   Bb major, 140 BPM, full orchestral feel ── */
 function scheduleResults(ctx, mg) {
-  var bpm = 138, b = 60/bpm;
-  // Big triumphant major fanfare
-  var mel = [523,659,784,1047,784,1047,784,659,
-             523,659,784,880,1047,880,784,659,
-             784,880,1047,1175,1047,880,784,659,
-             523,523,659,784,784,659,523,392];
-  var t = ctx.currentTime + 0.1;
-  function loop() {
+  var bpm = 140, b = 60/bpm, t0 = ctx.currentTime + 0.1;
+  var bar = b * 4;
+
+  // Grand chord progression: Bb F/A Gm Eb | Bb F Eb Bb
+  var prog = [
+    [233.1, 293.7, 349.2, 466.2],  // Bb
+    [174.6, 220.0, 261.6, 349.2],  // F/A
+    [196.0, 233.1, 293.7, 392.0],  // Gm
+    [155.6, 196.0, 233.1, 311.1],  // Eb
+    [233.1, 293.7, 349.2, 466.2],  // Bb
+    [174.6, 220.0, 261.6, 349.2],  // F
+    [155.6, 196.0, 233.1, 311.1],  // Eb
+    [233.1, 293.7, 349.2, 466.2],  // Bb
+  ];
+
+  // Fanfare melody — heroic
+  var mel = [
+    466.2,0,587.3,698.5, 784.0,698.5,587.3,466.2,
+    587.3,0,698.5,784.0, 880.0,784.0,698.5,0,
+    784.0,0,880.0,1046.5, 880.0,0,784.0,698.5,
+    587.3,0,698.5,587.3, 466.2,0,0,0,
+    523.3,0,587.3,698.5, 784.0,880.0,1046.5,0,
+    880.0,0,784.0,698.5, 587.3,0,698.5,0,
+    784.0,698.5,587.3,523.3, 466.2,523.3,587.3,698.5,
+    784.0,0,0,0, 0,0,0,0,
+  ];
+
+  function loop(t) {
     if (!bgRunning) return;
-    mel.forEach(function(f, i) { note(ctx, mg, f, t + i*b*0.5, b*0.42, 'square', 0.18); });
-    var bassLine = [131,131,165,196,196,165,131,110,131,131,165,196,175,165,131,98];
-    bassLine.forEach(function(f, i) { note(ctx, mg, f, t + i*b, b*0.8, 'triangle', 0.32); });
-    var bigChords = [[262,330,392,523],[349,440,523,659],[392,494,587,784],[262,330,392,523]];
-    bigChords.forEach(function(c, i) {
-      chord(ctx, mg, c, t + i*b*4, b*3.6, 'sine', 0.22);
-      chord(ctx, mg, c.map(function(f){return f*2;}), t + i*b*4 + b*2, b*1.6, 'sine', 0.12);
+    prog.forEach(function(ch, i) {
+      // Full chord pads
+      ch.forEach(function(f) { pad(ctx, mg, f, t + i*bar, bar*0.92, 0.07); });
+      // Punchy chord hits on beats 1 and 3
+      chord(ctx, mg, ch, t + i*bar, b*0.3, 'square', 0.12, 0.01);
+      chord(ctx, mg, ch, t + i*bar + b*2, b*0.3, 'square', 0.10, 0.01);
+      // Heavy bass
+      osc(ctx, mg, ch[0]*0.5, t + i*bar, bar*0.88, 'triangle', 0.35, 0.02, 0.1);
+      // Bass octave hits
+      osc(ctx, mg, ch[0]*0.25, t + i*bar, b*0.6, 'sine', 0.22, 0.01, 0.15);
     });
-    var loopLen = bassLine.length * b;
-    t += loopLen;
-    setTimeout(function() { if (bgRunning) loop(); }, (loopLen - 0.3) * 1000);
+    // Heroic melody
+    mel.forEach(function(f, i) {
+      if (f > 0) {
+        osc(ctx, mg, f, t + i*(b*0.5), b*0.40, 'square', 0.15, 0.01, 0.06);
+        osc(ctx, mg, f*0.5, t + i*(b*0.5), b*0.38, 'triangle', 0.08, 0.01, 0.08);
+      }
+    });
+    var loopLen = bar * 8;
+    bgLoopTimer = setTimeout(function() { if (bgRunning) loop(t + loopLen); }, (loopLen - 0.5) * 1000);
   }
-  loop();
+  loop(t0);
 }
 
-/* ── SINGALONG: Upbeat party music ── */
+/* ── SINGALONG: Disco-funk party energy ──
+   120 BPM, E major groove, 4-on-floor kick feel ── */
 function scheduleSingalong(ctx, mg) {
-  var bpm = 120, b = 60/bpm;
-  var mel = [784,784,880,784,1047,880,784,659,
-             784,784,880,784,1047,880,784,659,
-             659,659,784,659,880,784,659,587,
-             587,659,784,659,523,587,659,784];
-  var t = ctx.currentTime + 0.1;
-  function loop() {
+  var bpm = 120, b = 60/bpm, t0 = ctx.currentTime + 0.1;
+  var bar = b * 4;
+
+  var prog = [
+    [164.8, 207.7, 246.9, 329.6],  // E maj
+    [185.0, 220.0, 261.6, 370.0],  // F#m
+    [196.0, 246.9, 293.7, 392.0],  // G#m (as G)
+    [174.6, 220.0, 261.6, 349.2],  // A maj (as F)
+  ];
+
+  var mel = [
+    329.6,0,392.0,440.0, 493.9,440.0,392.0,0,
+    370.0,0,415.3,493.9, 554.4,493.9,415.3,0,
+    392.0,0,440.0,493.9, 554.4,493.9,440.0,392.0,
+    370.0,0,329.6,0,     0,0,0,0,
+    329.6,392.0,440.0,0, 493.9,0,554.4,659.3,
+    587.3,0,523.3,0,     493.9,0,440.0,0,
+    392.0,0,440.0,493.9, 523.3,493.9,440.0,392.0,
+    329.6,0,0,0,         0,0,0,0,
+  ];
+
+  function loop(t) {
     if (!bgRunning) return;
-    mel.forEach(function(f, i) { note(ctx, mg, f, t + i*b*0.5, b*0.4, 'triangle', 0.14); });
-    var bassLine = [131,131,165,165,196,196,165,165,131,131,110,110,131,131,165,196];
-    bassLine.forEach(function(f, i) { note(ctx, mg, f, t + i*b, b*0.75, 'triangle', 0.3); });
-    [[262,330,392],[349,440,523],[349,440,523],[262,330,392]].forEach(function(c, i) {
-      chord(ctx, mg, c, t + i*b*4, b*3.8, 'sine', 0.16);
+    // Funky 4-on-floor bass
+    prog.forEach(function(ch, i) {
+      for (var beat = 0; beat < 8; beat++) {
+        var bt = t + i*2*bar + beat*b;
+        osc(ctx, mg, ch[0]*0.5, bt, b*0.7, 'triangle', 0.30, 0.01, 0.1);
+        // Disco octave jump on beat 3
+        if (beat % 4 === 2) osc(ctx, mg, ch[0], bt + b*0.5, b*0.25, 'triangle', 0.18, 0.01, 0.06);
+      }
+      // Chord stabs on off-beats
+      for (var stab = 0; stab < 8; stab++) {
+        osc(ctx, mg, ch[1], t + i*2*bar + stab*b + b*0.5, b*0.2, 'sine', 0.06, 0.01, 0.05);
+        osc(ctx, mg, ch[2], t + i*2*bar + stab*b + b*0.5, b*0.2, 'sine', 0.06, 0.01, 0.05);
+      }
     });
-    var loopLen = bassLine.length * b;
-    t += loopLen;
-    setTimeout(function() { if (bgRunning) loop(); }, (loopLen - 0.3) * 1000);
+    // Bright melody
+    mel.forEach(function(f, i) {
+      if (f > 0) {
+        osc(ctx, mg, f, t + i*(b*0.5), b*0.38, 'triangle', 0.13, 0.01, 0.05);
+        if (i % 4 === 0) osc(ctx, mg, f*1.5, t + i*(b*0.5), b*0.3, 'sine', 0.04, 0.02, 0.06);
+      }
+    });
+    var loopLen = bar * 8;
+    bgLoopTimer = setTimeout(function() { if (bgRunning) loop(t + loopLen); }, (loopLen - 0.5) * 1000);
   }
-  loop();
+  loop(t0);
 }
 
-/* ── CRESCENDO for R2/R3 reveal ── */
+/* ── CRESCENDO: Fast cinematic reveal ── */
+function playPing(place) {
+  var ctx = getCtx();
+  if (ctx.state === 'suspended') ctx.resume();
+  var mg = ctx.createGain();
+  mg.connect(ctx.destination);
+  // Different pitch per place: 1st=high gold, 2nd=mid silver, 3rd=lower bronze
+  var configs = [
+    {freq:1320, freq2:1760, vol:0.35, dur:0.6},  // 1st — bright high ping
+    {freq:880,  freq2:1100, vol:0.28, dur:0.5},  // 2nd — mid ping
+    {freq:660,  freq2:880,  vol:0.22, dur:0.4},  // 3rd — lower ping
+  ];
+  var c = configs[place - 1] || configs[2];
+  var t = ctx.currentTime;
+  // Main ping tone
+  var o1 = ctx.createOscillator();
+  var g1 = ctx.createGain();
+  o1.type = 'sine';
+  o1.frequency.setValueAtTime(c.freq, t);
+  o1.frequency.exponentialRampToValueAtTime(c.freq * 0.7, t + c.dur);
+  g1.gain.setValueAtTime(c.vol, t);
+  g1.gain.exponentialRampToValueAtTime(0.001, t + c.dur);
+  o1.connect(g1); g1.connect(mg);
+  o1.start(t); o1.stop(t + c.dur);
+  // Harmonic overtone for richness
+  var o2 = ctx.createOscillator();
+  var g2 = ctx.createGain();
+  o2.type = 'sine';
+  o2.frequency.setValueAtTime(c.freq2, t);
+  o2.frequency.exponentialRampToValueAtTime(c.freq2 * 0.7, t + c.dur * 0.6);
+  g2.gain.setValueAtTime(c.vol * 0.4, t);
+  g2.gain.exponentialRampToValueAtTime(0.001, t + c.dur * 0.6);
+  o2.connect(g2); g2.connect(mg);
+  o2.start(t); o2.stop(t + c.dur * 0.6);
+}
+
 function playCrescendo() {
   var ctx = getCtx();
   if (ctx.state === 'suspended') ctx.resume();
   var mg = ctx.createGain();
   mg.gain.setValueAtTime(0.0, ctx.currentTime);
-  mg.gain.linearRampToValueAtTime(0.5, ctx.currentTime + 1.2);
-  mg.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 2.2);
+  mg.gain.linearRampToValueAtTime(0.55, ctx.currentTime + 1.0);
+  mg.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 2.0);
   mg.connect(ctx.destination);
   var t = ctx.currentTime;
-  // Fast rising chromatic rush — shorter intervals
-  var rising = [110,123,138,155,174,196,220,247,277,311,349,392,440,494,554,587,659,740,830,880,988,1047,1175,1319,1480];
-  rising.forEach(function(f, i) {
-    note(ctx, mg, f, t + i*0.04, 0.09, 'sawtooth', 0.22);
+  // Fast chromatic rush
+  [110,123,138,155,174,196,220,247,277,311,349,392,440,494,554,587,659,740,830,880,988,1047,1175,1319,1480].forEach(function(f, i) {
+    osc(ctx, mg, f, t + i*0.035, 0.08, 'sawtooth', 0.22, 0.005, 0.04);
   });
-  // Big impact chord
-  [131,165,196,247,294,330,392,494].forEach(function(f) {
-    note(ctx, mg, f, t + 1.0, 1.0, 'sine', 0.28);
+  // Impact chord
+  [131,165,196,247,294,330,392,494,659].forEach(function(f) {
+    osc(ctx, mg, f, t + 0.9, 0.9, 'sine', 0.28, 0.01, 0.3);
   });
 }
 
@@ -732,7 +981,7 @@ function goAbout(dest) {
 
 var INTRO_TEXT = "Welcome to Riff and Recall, the ultimate music trivia party game! " +
   "Get ready for three exciting rounds of musical mayhem! " +
-  "In Round 1, you'll hear audio clips — listen up and buzz in fast! The first correct answer gets 5 points, second gets 3, third gets 2, and everyone else who gets it right scores 1. " +
+  "In Round 1, you will hear audio clips — listen up and buzz in fast! The first correct answer gets 5 points, second gets 3, third gets 2, and everyone else who gets it right scores 1. " +
   "In Round 2, famous musician photos appear on the TV. Watch the screen and pick who you see! " +
   "In Round 3, cryptic lyric clues challenge your song knowledge. Can you identify the track? " +
   "At the end, the champion earns the legendary title of ROCK GOD! " +
@@ -777,6 +1026,93 @@ function skipAbout() {
 function continueFromAbout() {
   stopBgMusic();
   if (aboutDest === 'host') { hide('about'); show('host'); initHost(); }
+}
+
+/* ══ GENRE SYSTEM ══
+   Each song in R1_POOL will eventually have genre tags.
+   For now genres are defined here — selecting them filters
+   which songs appear. When pool is small all genres play.
+══════════════════════════════════════════ */
+var ALL_GENRES = [
+  {id:'70s_soul',    label:"70's Soul",         decade:'70s', emoji:'🎷'},
+  {id:'70s_rock',    label:"70's Rock",          decade:'70s', emoji:'🎸'},
+  {id:'70s_disco',   label:"70's Disco",         decade:'70s', emoji:'🕺'},
+  {id:'80s_pop',     label:"80's Pop",           decade:'80s', emoji:'🎤'},
+  {id:'80s_rock',    label:"80's Rock",          decade:'80s', emoji:'🤘'},
+  {id:'80s_rb',      label:"80's R&B",           decade:'80s', emoji:'🎵'},
+  {id:'classic_rock',label:"Classic Rock",       decade:'all', emoji:'🎸'},
+  {id:'90s_grunge',  label:"90's Grunge",        decade:'90s', emoji:'👕'},
+  {id:'90s_hip_hop', label:"90's Hip Hop",       decade:'90s', emoji:'🎤'},
+  {id:'90s_gangsta', label:"90's Gangsta Rap",   decade:'90s', emoji:'🎙️'},
+  {id:'90s_rb',      label:"90's R&B",           decade:'90s', emoji:'💃'},
+  {id:'90s_pop',     label:"90's Pop",           decade:'90s', emoji:'🌟'},
+  {id:'90s_britpop', label:"90's Britpop",       decade:'90s', emoji:'🇬🇧'},
+  {id:'00s_rb',      label:"2000's R&B",         decade:'00s', emoji:'🎶'},
+  {id:'00s_hip_hop', label:"2000's Hip Hop",     decade:'00s', emoji:'🎤'},
+  {id:'00s_rock',    label:"2000's Rock",        decade:'00s', emoji:'🎸'},
+  {id:'00s_emo',     label:"2000's Emo",         decade:'00s', emoji:'🖤'},
+  {id:'00s_pop',     label:"2000's Pop",         decade:'00s', emoji:'⭐'},
+  {id:'10s_pop',     label:"2010's Pop",         decade:'10s', emoji:'🎵'},
+  {id:'10s_hip_hop', label:"2010's Hip Hop",     decade:'10s', emoji:'🎤'},
+  {id:'10s_rb',      label:"2010's R&B",         decade:'10s', emoji:'🎶'},
+  {id:'10s_indie',   label:"2010's Indie",       decade:'10s', emoji:'🎸'},
+  {id:'20s_pop',     label:"2020's Pop",         decade:'20s', emoji:'🌟'},
+  {id:'20s_hip_hop', label:"2020's Hip Hop",     decade:'20s', emoji:'🎤'},
+];
+
+var selectedGenres = {};
+var genreScreenDest = 'host';
+
+// NOTE: Genre screen is hidden until enough songs per genre exist.
+// Currently all songs play regardless of genre selection.
+// When the song pool grows, each song gets genre tags and
+// selectedGenres filters R1_POOL accordingly.
+function showGenreScreen(dest) {
+  // For now, skip genre screen and go straight to about page
+  // Remove this skip when song pool is large enough
+  genreScreenDest = dest;
+  goAbout(dest);
+  // Uncomment below when ready:
+  // genreScreenDest = dest;
+  // hide('landing'); show('genre-screen');
+  // renderGenreGrid();
+  // playBgMusic('lobby');
+}
+
+function renderGenreGrid() {
+  var grid = $('genre-grid');
+  if (!grid) return;
+  grid.innerHTML = '';
+  ALL_GENRES.forEach(function(g) {
+    var sel = selectedGenres[g.id];
+    var btn = document.createElement('button');
+    btn.style.cssText = 'background:' + (sel ? 'rgba(245,200,66,.15)' : 'var(--surf)') + ';border:2px solid ' + (sel ? 'var(--gold)' : 'var(--border)') + ';border-radius:12px;padding:14px 12px;font-size:14px;font-weight:600;color:' + (sel ? 'var(--gold)' : 'var(--text)') + ';cursor:pointer;text-align:center;display:flex;flex-direction:column;align-items:center;gap:4px;-webkit-tap-highlight-color:transparent;';
+    btn.innerHTML = '<span style="font-size:24px;">' + g.emoji + '</span><span>' + g.label + '</span>';
+    btn.onclick = function() {
+      selectedGenres[g.id] = !selectedGenres[g.id];
+      renderGenreGrid();
+      updateGenreContinue();
+    };
+    grid.appendChild(btn);
+  });
+}
+
+function selectAllGenres() {
+  ALL_GENRES.forEach(function(g) { selectedGenres[g.id] = true; });
+  renderGenreGrid();
+  updateGenreContinue();
+}
+
+function updateGenreContinue() {
+  var btn = $('genre-continue-btn');
+  var any = ALL_GENRES.some(function(g) { return selectedGenres[g.id]; });
+  if (btn) { btn.disabled = !any; btn.style.opacity = any ? '1' : '0.4'; }
+}
+
+function continueFromGenres() {
+  stopBgMusic();
+  hide('genre-screen');
+  goAbout(genreScreenDest);
 }
 
 /* ══ SONG POOLS ══ */
@@ -841,6 +1177,37 @@ var R2_POOL = [
   {hint:'10s-20s Hip Hop', wiki:'Post_Malone', answers:['Lil Uzi Vert','Travis Scott','Post Malone','Juice WRLD'], correct:2},
   {hint:'10s Pop', wiki:'Adele', answers:['Adele','Duffy','Amy Winehouse','Paloma Faith'], correct:0},
   {hint:'90s Pop', wiki:'Britney_Spears', answers:['Britney Spears','Christina Aguilera','Mandy Moore','Jessica Simpson'], correct:0},
+  // ── EXPANDED POOL (batch 2) ──
+  {hint:'70s Rock', wiki:'Bruce_Springsteen', answers:['Bob Seger','Bruce Springsteen','Tom Petty','John Mellencamp'], correct:1},
+  {hint:'70s-80s Pop Rock', wiki:'Stevie_Wonder', answers:['Stevie Wonder','Marvin Gaye','Al Green','Curtis Mayfield'], correct:0},
+  {hint:'70s Soul', wiki:'Aretha_Franklin', answers:['Diana Ross','Aretha Franklin','Gladys Knight','Tina Turner'], correct:1},
+  {hint:'70s Reggae', wiki:'Jimmy_Cliff', answers:['Peter Tosh','Toots Hibbert','Jimmy Cliff','Burning Spear'], correct:2},
+  {hint:'80s New Wave', wiki:'Cyndi_Lauper', answers:['Pat Benatar','Cyndi Lauper','Blondie','Siouxsie Sioux'], correct:1},
+  {hint:'80s Pop', wiki:'Prince', answers:['Prince','Rick James','George Clinton','Morris Day'], correct:0},
+  {hint:'80s Rock', wiki:'Bruce_Springsteen', answers:['John Mellencamp','Tom Petty','Bruce Springsteen','Bob Seger'], correct:2},
+  {hint:'80s Heavy Metal', wiki:'Ozzy_Osbourne', answers:['Rob Halford','Ozzy Osbourne','Ronnie James Dio','Alice Cooper'], correct:1},
+  {hint:'90s Alternative', wiki:'Trent_Reznor', answers:['Marilyn Manson','Trent Reznor','Billy Corgan','Thom Yorke'], correct:1},
+  {hint:'90s Hip Hop', wiki:'Tupac_Shakur', answers:['Biggie Smalls','Ice Cube','Tupac Shakur','Nas'], correct:2},
+  {hint:'90s Hip Hop', wiki:'The_Notorious_B.I.G.', answers:['Jay-Z','Tupac','The Notorious B.I.G.','Nas'], correct:2},
+  {hint:'90s R&B', wiki:'Usher', answers:['Chris Brown','Usher','Ne-Yo','R. Kelly'], correct:1},
+  {hint:'90s Country', wiki:'Garth_Brooks', answers:['Alan Jackson','Tim McGraw','Garth Brooks','George Strait'], correct:2},
+  {hint:'90s Pop', wiki:'Celine_Dion', answers:['Whitney Houston','Mariah Carey','Celine Dion','Gloria Estefan'], correct:2},
+  {hint:'00s Hip Hop', wiki:'Eminem', answers:['Jay-Z','Eminem','50 Cent','Lil Wayne'], correct:1},
+  {hint:'00s Hip Hop', wiki:'Jay-Z', answers:['Jay-Z','Kanye West','Nas','DMX'], correct:0},
+  {hint:'00s R&B', wiki:'Alicia_Keys', answers:['Alicia Keys','Ciara','Keyshia Cole','Jazmine Sullivan'], correct:0},
+  {hint:'00s Pop', wiki:'Justin_Timberlake', answers:['Ryan Timberlake','Justin Bieber','Justin Timberlake','Nick Lachey'], correct:2},
+  {hint:'00s Pop Punk', wiki:'Avril_Lavigne', answers:['Hayley Williams','Kelly Clarkson','Avril Lavigne','Pink'], correct:2},
+  {hint:'00s Rock', wiki:'Jack_White', answers:['Josh Homme','Jack White','Dave Grohl','Chris Cornell'], correct:1},
+  {hint:'10s Pop', wiki:'Justin_Bieber', answers:['Nick Jonas','Justin Bieber','Shawn Mendes','Charlie Puth'], correct:1},
+  {hint:'10s Pop', wiki:'Ariana_Grande', answers:['Ariana Grande','Selena Gomez','Demi Lovato','Miley Cyrus'], correct:0},
+  {hint:'10s Hip Hop', wiki:'Nicki_Minaj', answers:['Cardi B','Doja Cat','Nicki Minaj','Megan Thee Stallion'], correct:2},
+  {hint:'10s Hip Hop', wiki:'Cardi_B', answers:['Nicki Minaj','Cardi B','Doja Cat','Lizzo'], correct:1},
+  {hint:'10s Country', wiki:'Luke_Bryan', answers:['Blake Shelton','Luke Bryan','Jason Aldean','Florida Georgia Line'], correct:1},
+  {hint:'10s Indie Pop', wiki:'Lorde', answers:['Lana Del Rey','Lorde','Halsey','Lykke Li'], correct:1},
+  {hint:'20s Pop', wiki:'Doja_Cat', answers:['Doja Cat','Megan Thee Stallion','Cardi B','Lizzo'], correct:0},
+  {hint:'20s Hip Hop', wiki:'Travis_Scott', answers:['Lil Baby','Travis Scott','Roddy Ricch','NBA YoungBoy'], correct:1},
+  {hint:'20s Pop', wiki:'Sabrina_Carpenter', answers:['Olivia Rodrigo','Gracie Abrams','Sabrina Carpenter','Chappell Roan'], correct:2},
+  {hint:'20s Pop', wiki:'Chappell_Roan', answers:['Sabrina Carpenter','Charli XCX','Chappell Roan','Gracie Abrams'], correct:2},
 ];
 
 var R3_POOL = [
@@ -894,6 +1261,73 @@ var R3_POOL = [
    song:'Welcome To The Black Parade', answers:['My Chemical Romance','Fall Out Boy','Panic At The Disco','Paramore'], correct:0},
   {clue:'Someone keeps calling late at night. The narrator is heartbroken but pretends to be fine. Minimalist beat, hook sticks instantly.',
    song:'Hotline Bling', answers:['Future','Drake','The Weeknd','Post Malone'], correct:1},
+  // ── EXPANDED BATCH 2 ──
+  {clue:'A young woman escapes an abusive relationship and drives away in the rain. She calls her mother crying. The production is sparse and emotional.',
+   song:'White Flag', answers:['Dido','Sia','Adele','Florence Welch'], correct:0},
+  {clue:'Someone describes the feeling of falling in love for the first time as terrifying and wonderful all at once. Every sound becomes music.',
+   song:'Cant Help Falling In Love', answers:['Frank Sinatra','Elvis Presley','Dean Martin','Roy Orbison'], correct:1},
+  {clue:'A person lists everything wrong with themselves in a matter-of-fact tone but insists they are still worthy of love. The tone is defiant.',
+   song:'All About That Bass', answers:['Katy Perry','Meghan Trainor','Lizzo','Adele'], correct:1},
+  {clue:'Someone has been told their whole life to be quiet and small. The chorus is an explosion of refusal — they are not going to dim their light anymore.',
+   song:'Roar', answers:['Pink','Katy Perry','Kelly Clarkson','Kesha'], correct:1},
+  {clue:'The narrator watches a beautiful sunset from a moving car and thinks about someone they miss terribly. The instrumentation is warm and nostalgic.',
+   song:'Fast Car', answers:['Joni Mitchell','Tracy Chapman','Sheryl Crow','Sarah McLachlan'], correct:1},
+  {clue:'A soldier writes letters home from a war zone. The song alternates between the battlefield and the family waiting at home. Deeply emotional country track.',
+   song:'Letters From Home', answers:['Toby Keith','Kenny Chesney','John Michael Montgomery','Tim McGraw'], correct:2},
+  {clue:'Someone describes being at a party surrounded by people but feeling completely invisible and alone. The beat is modern and trap-influenced.',
+   song:'Lonely', answers:['Justin Bieber','The Weeknd','Post Malone','Lil Uzi Vert'], correct:0},
+  {clue:'A narrator describes a magical evening watching fireflies in a field as a child. The song is about holding onto innocence before the world takes it.',
+   song:'Fireflies', answers:['Owl City','Death Cab For Cutie','Of Monsters And Men','Vampire Weekend'], correct:0},
+  {clue:'Someone gives very specific directions to their house in the lyrics. The chorus is about waiting by the phone for a text back. The production is lo-fi.',
+   song:'Slide', answers:['Frank Ocean','Daniel Caesar','H.E.R.','dvsn'], correct:0},
+  {clue:'A man describes watching the woman he loves marry someone else. He stands at the back of the church and says nothing. The melody is devastating.',
+   song:'She Used To Be Mine', answers:['Gavin DeGraw','Josh Groban','James Blunt','Train'], correct:2},
+  {clue:'Two former lovers run into each other at a grocery store years later. The narrator notices the other person looks happy. Bittersweet and quiet.',
+   song:'Ex Factor', answers:['Alicia Keys','Lauryn Hill','Erykah Badu','Jill Scott'], correct:1},
+  {clue:'The singer describes being raised in a town with nothing to do and music being the only escape. Every weekend was the same party until someone left.',
+   song:'Small Town', answers:['John Cougar Mellencamp','Tom Petty','Bruce Springsteen','Bob Seger'], correct:0},
+  {clue:'A woman tells a cheating ex exactly what she plans to do with all his clothes, his car, and his reputation. The song is calm but deadly.',
+   song:'Good as Hell', answers:['Megan Thee Stallion','Lizzo','Doja Cat','Cardi B'], correct:1},
+  {clue:'Someone describes a perfect date that ends too soon. They sit on a rooftop watching the city lights and wish time would stop. Dreamy and cinematic.',
+   song:'A Thousand Years', answers:['Adele','Birdy','Christina Perri','Lana Del Rey'], correct:2},
+  {clue:'The narrator wakes up in a city that never sleeps and realizes they have made it. The song shifts between Spanish and English in the bridge.',
+   song:'On The Floor', answers:['Rihanna','Shakira','Jennifer Lopez','Selena Gomez'], correct:2},
+  {clue:'A breakup song where the narrator refuses to cry or show weakness. They pack their things, say nothing, and walk out with their head high.',
+   song:'Irreplaceable', answers:['Rihanna','Beyonce','Ciara','Alicia Keys'], correct:1},
+  {clue:'Someone describes learning to love themselves after years of self-doubt. They stand in front of a mirror and finally like what they see.',
+   song:'Beautiful', answers:['Alicia Keys','Christina Aguilera','Pink','Mariah Carey'], correct:1},
+  {clue:'A very short song about a moment of pure joy. The narrator describes jumping on a trampoline as a metaphor for how love feels.',
+   song:'Happy', answers:['Pharrell Williams','Bruno Mars','Justin Timberlake','Mark Ronson'], correct:0},
+  {clue:'The narrator is writing a letter to their younger self with advice about heartbreak, friendships, and not worrying about what others think.',
+   song:'Dear Younger Me', answers:['Taylor Swift','Carrie Underwood','MercyMe','Lecrae'], correct:2},
+  {clue:'A couple argues every night but cannot stay apart. The narrator admits their relationship is toxic but neither person can leave. The production is dark pop.',
+   song:'Toxic', answers:['Rihanna','Kesha','Britney Spears','Ava Max'], correct:2},
+  {clue:'Someone lists their morning routine in extreme detail — coffee, news, commute — to show how empty their life has become since a breakup.',
+   song:'Somebody That I Used To Know', answers:['Passenger','Gotye ft Kimbra','The Lumineers','Of Monsters And Men'], correct:1},
+  {clue:'A song from the perspective of a parent watching their child grow up too fast. Each verse describes a different birthday. The final verse is devastating.',
+   song:'Never Grow Up', answers:['Taylor Swift','Kacey Musgraves','Brandi Carlile','Lucy Dacus'], correct:0},
+  {clue:'The narrator describes sitting in a car outside a party they are too anxious to enter. The song is about social anxiety and feeling like an outsider.',
+   song:'Stressed Out', answers:['Fall Out Boy','Twenty One Pilots','Paramore','Panic At The Disco'], correct:1},
+  {clue:'A song about living in the moment and not planning for the future. The narrator and a stranger share one perfect night and agree not to exchange names.',
+   song:'One Dance', answers:['Drake','The Weeknd','Travis Scott','Future'], correct:0},
+  {clue:'The narrator describes their hometown as a place they could not wait to leave but now miss desperately. The song is a love letter to a small city.',
+   song:'Take Me Home Country Roads', answers:['John Denver','James Taylor','Jim Croce','Cat Stevens'], correct:0},
+  {clue:'Someone describes the sensation of floating just above reality — everything looks normal but feels like a dream. The production has an ethereal quality.',
+   song:'Levitating', answers:['Ariana Grande','Dua Lipa','Charli XCX','Bebe Rexha'], correct:1},
+  {clue:'The narrator is at a crossroads and asks for a sign from the universe. The song features handclaps and a gospel choir in the final chorus.',
+   song:'What Goes Around', answers:['Usher','Justin Timberlake','Robin Thicke','John Legend'], correct:1},
+  {clue:'A song told from the perspective of a city at night. The streets describe the people who walk through them — lovers, criminals, dreamers.',
+   song:'Empire State of Mind Part II', answers:['Alicia Keys','Mary J Blige','Beyonce','Jennifer Hudson'], correct:0},
+  {clue:'Someone describes a road trip with their best friend. They sing off-key to the radio and eat terrible food. The song is purely about joy.',
+   song:'Life Is A Highway', answers:['Tom Cochrane','John Mellencamp','Tom Petty','Bruce Springsteen'], correct:0},
+  {clue:'The narrator has been waiting for years for a relationship to change. They finally accept it never will. The final line is one word, said three times.',
+   song:'Let Her Go', answers:['Passenger','Ed Sheeran','James Arthur','Lewis Capaldi'], correct:0},
+  {clue:'A boastful anthem where the rapper describes their lavish lifestyle — private jets, designer clothes, expensive champagne — in extraordinary detail.',
+   song:'HUMBLE.', answers:['Cardi B','Drake','Kendrick Lamar','Jay-Z'], correct:2},
+  {clue:'Two people who should not be together keep finding their way back to each other. The song compares their relationship to gravity — inescapable.',
+   song:'Gravity', answers:['Sara Bareilles','John Mayer','Colbie Caillat','Jason Mraz'], correct:0},
+  {clue:'The narrator describes being the last person picked for teams in gym class, not fitting in at lunch, and finding solace in music. Now they are famous.',
+   song:'Nerd', answers:['Pharrell Williams','Kid Cudi','Chance The Rapper','Donald Glover'], correct:0},
 ];
 
 /* ── UTILS ── */
@@ -902,6 +1336,24 @@ var show = function(id) { $(id).classList.remove('hidden'); };
 var hide = function(id) { $(id).classList.add('hidden'); };
 var shuffle = function(a) { return [].concat(a).sort(function() { return Math.random() - .5; }); };
 var pick = function(arr, n) { return shuffle(arr).slice(0, n); };
+
+// Anti-repeat tracking — store last N used indices per pool
+var recentlyUsed = { r2: [], r3: [] };
+function pickWithAntiRepeat(arr, n, poolKey) {
+  if (!poolKey) return pick(arr, n);
+  var recent = recentlyUsed[poolKey] || [];
+  // Prefer items not recently used
+  var fresh = arr.filter(function(_, i) { return recent.indexOf(i) === -1; });
+  var stale = arr.filter(function(_, i) { return recent.indexOf(i) !== -1; });
+  // Use fresh first, fill with stale if needed
+  var pool = shuffle(fresh).concat(shuffle(stale));
+  var chosen = pool.slice(0, n);
+  // Update recently used — keep last 2/3 of pool size
+  var chosenIndices = chosen.map(function(item) { return arr.indexOf(item); });
+  var maxRecent = Math.floor(arr.length * 0.66);
+  recentlyUsed[poolKey] = (recent.concat(chosenIndices)).slice(-maxRecent);
+  return chosen;
+}
 var genCode = function() { return String(Math.floor(1000 + Math.random() * 9000)); };
 function setStatus(cls, txt) { show('sbar'); $('sdot').className = 'sdot ' + cls; $('stxt').textContent = txt; }
 
@@ -982,6 +1434,8 @@ function initHost() {
         p.posThisQ = pos;
         p.streak++;
         p.maxStreak = Math.max(p.maxStreak, p.streak);
+        // Ping for 1st, 2nd, 3rd correct answers
+        if (pos <= 3) playPing(pos);
       } else {
         p.streak = 0;
         p.earnedThisQ = 0;
@@ -1021,8 +1475,8 @@ function hostStart() {
   stopBgMusic();
   hRounds = [
     { type: 'r1', questions: shuffle(R1_POOL) },
-    { type: 'r2', questions: pick(R2_POOL, Math.min(25, R2_POOL.length)) },
-    { type: 'r3', questions: pick(R3_POOL, Math.min(25, R3_POOL.length)) },
+    { type: 'r2', questions: pickWithAntiRepeat(R2_POOL, Math.min(25, R2_POOL.length), 'r2') },
+    { type: 'r3', questions: pickWithAntiRepeat(R3_POOL, Math.min(25, R3_POOL.length), 'r3') },
   ];
   hRound = 0; hCurrent = 0;
   Object.values(hPlayers).forEach(function(p) { p.score = 0; p.streak = 0; p.maxStreak = 0; });
@@ -1052,7 +1506,7 @@ function renderHostQ() {
   Object.values(hPlayers).forEach(function(p) { p.buzzed = false; p.choice = -1; p.earnedThisQ = 0; p.posThisQ = 0; });
 
   var q = curQ(), type = curType(), total = totalQ();
-  var sec = type === 'r1' ? 15 : 40;
+  var sec = type === 'r1' ? 15 : type === 'r2' ? 20 : 40;
   hTimeLeft = sec;
 
   var rtitles = ['Round 1 - Audio Clips', 'Round 2 - Who Is This?', 'Round 3 - Lyric Clues'];
@@ -1151,8 +1605,12 @@ function revealHost() {
   }
 
   // Show song name — always. R3 shows song + artist
-  var revealHTML = '<strong style="font-size:20px;">' + q.song + '</strong>';
-  if (revType === 'r3') revealHTML += ' &middot; <span style="color:var(--gold);">Artist: <strong>' + q.answers[q.correct] + '</strong></span>';
+  var revealHTML = '';
+  if (revType === 'r3') {
+    revealHTML = '<div style="font-size:22px;font-weight:700;color:var(--gold);margin-bottom:4px;">🎵 ' + (q.song||'') + '</div><div style="font-size:16px;color:var(--text);">Artist: <strong>' + (q.answers[q.correct]||'') + '</strong></div>';
+  } else {
+    revealHTML = '<strong style="font-size:20px;">' + (q.song||'') + '</strong>';
+  }
   $('song-reveal').innerHTML = revealHTML;
   show('song-reveal');
 
@@ -1294,7 +1752,7 @@ function showScoringAnnouncement() {
 
 var hRecallSubmitted = {}; // playerID -> true
 var hRecallTimer = null;
-var hRecallCountdown = 20;
+var hRecallCountdown = 40;
 var hRecallCountdownID = null;
 
 function handleRecallSubmit(playerId, songs) {
@@ -1316,7 +1774,7 @@ function handleRecallSubmit(playerId, songs) {
 }
 
 function startRecallCountdown() {
-  hRecallCountdown = 20;
+  hRecallCountdown = 40;
   hRecallSubmitted = {};
   updateHostRecallTimer(20);
   hRecallCountdownID = setInterval(function() {
@@ -1562,7 +2020,7 @@ function showRecallScreen(songs) {
   playBgMusic('singalong');
   renderRecallList();
   // Start 20-second countdown
-  var secs = 20;
+  var secs = 40;
   $('p-recall-timer').textContent = secs;
   pRecallTimerID = setInterval(function() {
     secs--;
@@ -1570,7 +2028,7 @@ function showRecallScreen(songs) {
     if (el) el.textContent = secs;
     if (secs <= 0) {
       clearInterval(pRecallTimerID);
-      if (!pRecallSubmitted) submitRecall();
+      if (!pRecallSubmitted) submitRecall(); // auto-submit at 40s
     }
   }, 1000);
 }
