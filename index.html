@@ -103,7 +103,8 @@ input{font-family:'DM Sans',sans-serif;}
 .artist-img-wrap{position:relative;width:100%;max-height:340px;overflow:hidden;background:#000;}
 .artist-img-reveal{width:100%;max-height:340px;object-fit:contain;object-position:center;display:block;
   clip-path:inset(100% 0% 0% 0%);
-  transition:clip-path 5s linear;}
+  transition:none;}
+.artist-img-reveal.animating{transition:clip-path 5s linear;}
 .artist-img-reveal.revealed{clip-path:inset(0% 0% 0% 0%);}
 .lyric-clue{font-size:18px;line-height:2;color:var(--text);padding:1.5rem 1.75rem;background:var(--surf2);border-left:4px solid var(--gold);font-style:italic;}
 .cbi{padding:1.25rem 1.5rem;}
@@ -1595,14 +1596,32 @@ function renderHostQ() {
     playBgMusic('suspense');
     show('r2-content');
     var img = $('h-aimg');
-    img.classList.remove('revealed');
+    img.classList.remove('revealed', 'animating');
+    img.style.clipPath = 'inset(100% 0% 0% 0%)';
     img.parentElement.style.display = 'block';
     $('h-r2hint').textContent = q.hint || '';
 
     function showImg(src) {
       if (!src) { img.parentElement.style.display = 'none'; return; }
-      img.onload = function() { setTimeout(function() { img.classList.add('revealed'); }, 50); };
+      // Step 1: remove all animation classes, force hidden state
+      img.classList.remove('revealed', 'animating');
+      img.style.clipPath = 'inset(100% 0% 0% 0%)';
       img.onerror = function() { img.parentElement.style.display = 'none'; };
+      img.onload = function() {
+        // Step 2: image loaded — force a paint in hidden state first
+        img.style.clipPath = 'inset(100% 0% 0% 0%)';
+        // Step 3: on next two frames, enable transition and remove hidden
+        requestAnimationFrame(function() {
+          requestAnimationFrame(function() {
+            img.style.clipPath = '';
+            img.classList.add('animating');
+            requestAnimationFrame(function() {
+              img.classList.add('revealed');
+            });
+          });
+        });
+      };
+      // Set src AFTER setting up the hidden state
       img.src = src;
     }
 
