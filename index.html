@@ -230,6 +230,14 @@ input{font-family:'DM Sans',sans-serif;}
 .p-final-score{font-family:'Bebas Neue',sans-serif;font-size:80px;color:var(--gold);line-height:1;}
 .p-final-lbl{font-size:12px;letter-spacing:2px;text-transform:uppercase;color:var(--muted);}
 
+.avatar{font-size:32px;line-height:1;display:inline-block;}
+.avatar-lg{font-size:48px;line-height:1;display:inline-block;}
+.avatar-sm{font-size:22px;line-height:1;display:inline-block;}
+#avatar-picker{min-height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1.5rem;text-align:center;padding:2rem;}
+.avatar-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;width:100%;max-width:320px;}
+.avatar-btn{background:var(--surf);border:3px solid var(--border);border-radius:14px;padding:16px;font-size:36px;cursor:pointer;transition:border-color .12s,transform .1s;-webkit-tap-highlight-color:transparent;}
+.avatar-btn:active{transform:scale(.92);}
+.avatar-btn.selected{border-color:var(--gold);background:rgba(245,200,66,.12);}
 #sbar{position:fixed;bottom:0;left:0;right:0;background:var(--surf);border-top:1px solid var(--border);padding:8px 18px;font-size:13px;color:var(--muted);display:flex;align-items:center;gap:10px;z-index:999;}
 .sdot{width:8px;height:8px;border-radius:50%;flex-shrink:0;}
 .sdot.ok{background:var(--green);}
@@ -439,7 +447,16 @@ input{font-family:'DM Sans',sans-serif;}
 
 <!-- PLAYER -->
 <div id="player" class="hidden">
-  <div id="pjoin">
+  <div id="avatar-picker">
+    <div class="p-logo">Riff <span>&amp;</span> Recall</div>
+    <div style="font-size:16px;font-weight:600;">Pick your avatar!</div>
+    <div class="avatar-grid" id="avatar-grid"></div>
+    <input class="name-input" id="pname-avatar" type="text" placeholder="Your name" maxlength="16" autocomplete="off" style="margin-top:.5rem;">
+    <button class="join-btn" id="avatar-next-btn" onclick="confirmAvatar()" style="opacity:.4;" disabled>Join Game →</button>
+    <div class="err" id="perr-avatar"></div>
+  </div>
+
+  <div id="pjoin" class="hidden">
     <div class="p-logo">Riff <span>&</span> Recall</div>
     <div style="font-size:13px;color:var(--muted);letter-spacing:2px;">MUSIC TRIVIA · 3 ROUNDS</div>
     <div class="code-wrap">
@@ -458,7 +475,7 @@ input{font-family:'DM Sans',sans-serif;}
   <div id="pgame" class="hidden">
     <div class="p-hdr">
       <div style="display:flex;align-items:center;gap:12px;">
-        <div class="p-av" id="p-av">?</div>
+        <div class="p-av" id="p-av" style="font-size:24px;background:transparent!important;">?</div>
         <div>
           <div style="font-size:16px;font-weight:700;" id="p-dname">Player</div>
           <div style="font-size:12px;color:var(--muted);">points</div>
@@ -617,7 +634,7 @@ function playBgMusic(style) {
     if (ctx.state === 'suspended') ctx.resume();
     bgGain = ctx.createGain();
     // Volume: 0.16 for suspense, 0.20 for others (between old iterations)
-    var vol = style === 'suspense' ? 0.19 : 0.20;
+    var vol = style === 'suspense' ? 0.22 : 0.20;
     bgGain.gain.setValueAtTime(0, ctx.currentTime);
     bgGain.gain.linearRampToValueAtTime(vol, ctx.currentTime + 1.2);
     bgGain.connect(ctx.destination);
@@ -764,54 +781,60 @@ function scheduleIntro(ctx, mg) {
   loop(t0);
 }
 
-/* ── SUSPENSE: Cinematic thriller tension ──
-   Dm, Bb/D, A7/C#, Dm — heartbeat, rising sweeps, tremolo strings ── */
+/* ── R2/R3 MUSIC: Upbeat mysterious groove ──
+   Am pentatonic, 118 BPM — energetic but tense ── */
 function scheduleSuspense(ctx, mg) {
-  var bpm = 76, b = 60/bpm, t0 = ctx.currentTime + 0.1;
+  var bpm = 118, b = 60/bpm, t0 = ctx.currentTime + 0.1;
   var bar = b * 4;
+
+  // Am - F - C - E7 (upbeat minor progression)
+  var chords = [
+    [110.0, 130.8, 164.8, 220.0],  // Am7
+    [174.6, 220.0, 261.6, 329.6],  // Fmaj7
+    [130.8, 164.8, 196.0, 261.6],  // Cmaj
+    [164.8, 207.7, 246.9, 311.1],  // E7
+  ];
+
+  // Driving bass — 8th notes
+  var bassNotes = [
+    110,110,123,110, 110,123,130,110,
+    87, 87, 98, 87,  87, 98,110, 87,
+    130,130,123,110, 110,123,130,146,
+    164,164,155,146, 164,155,146,130,
+  ];
+
+  // Melodic hook — mysterious but upbeat
+  var mel = [
+    220,0,261,220,  196,0,220,0,
+    261,0,294,261,  220,0,0,0,
+    196,0,220,196,  175,0,196,0,
+    220,0,261,220,  175,0,0,0,
+  ];
 
   function loop(t) {
     if (!bgRunning) return;
-    var loopBars = 8;
-
-    // Heartbeat bass (two hits close together)
-    for (var beat = 0; beat < loopBars * 4; beat++) {
-      var bt = t + beat * b;
-      osc(ctx, mg, 55.0, bt,        b*0.18, 'sine', 0.38, 0.005, 0.1);
-      osc(ctx, mg, 55.0, bt + b*0.2, b*0.12, 'sine', 0.22, 0.005, 0.08);
-    }
-
-    // Tremolo string pads — minor chords
-    var minorChords = [
-      [146.8, 174.6, 220.0],  // Dm
-      [174.6, 220.0, 261.6],  // F
-      [138.6, 174.6, 207.7],  // C#dim
-      [146.8, 174.6, 220.0],  // Dm
-    ];
-    minorChords.forEach(function(ch, ci) {
-      // Tremolo effect: rapid volume oscillation
-      for (var tr = 0; tr < 16; tr++) {
-        ch.forEach(function(f) {
-          osc(ctx, mg, f, t + ci*2*bar + tr*(b*0.5), b*0.45, 'sine', 0.12 * (tr % 2 === 0 ? 1 : 0.5), 0.01, 0.05);
-        });
-      }
+    // Driving bass 8ths
+    bassNotes.forEach(function(f, i) {
+      osc(ctx, mg, f, t + i*(b*0.5), b*0.38, 'triangle', 0.30, 0.01, 0.08);
     });
-
-    // Rising chromatic sweep (builds tension)
-    var sweepStart = t + loopBars * bar * 0.6;
-    [220,233,247,261,277,294,311,330,349,370,392,415,440,466,494,523].forEach(function(f, i) {
-      osc(ctx, mg, f, sweepStart + i*0.12, 0.25, 'sine', 0.06 + i*0.004, 0.02, 0.08);
+    // Chord stabs on beats 2 and 4 (syncopated)
+    chords.forEach(function(ch, ci) {
+      [b, b*3, b*4+b, b*4+b*3].forEach(function(off) {
+        chord(ctx, mg, ch.slice(1), t + ci*bar + off, b*0.22, 'sine', 0.18, 0.01);
+      });
+      // Sustained pad
+      ch.forEach(function(f) { pad(ctx, mg, f, t + ci*bar, bar*0.92, 0.055); });
     });
-
-    // Pizzicato plucks on offbeats
-    for (var pk = 0; pk < loopBars * 4; pk++) {
-      if (pk % 2 === 1) {
-        osc(ctx, mg, 146.8, t + pk*b + b*0.5, b*0.08, 'triangle', 0.15, 0.001, 0.04);
-      }
+    // Melody
+    mel.forEach(function(f, i) {
+      if (f > 0) osc(ctx, mg, f, t + i*(b*0.5), b*0.35, 'triangle', 0.13, 0.01, 0.06);
+    });
+    // Off-beat hi-hat feel (short high plucks)
+    for (var h = 0; h < 16; h++) {
+      if (h % 2 === 1) osc(ctx, mg, 1200 + h*30, t + h*(b*0.5), 0.04, 'sine', 0.04, 0.002, 0.02);
     }
-
-    var loopLen = bar * loopBars;
-    bgLoopTimer = setTimeout(function() { if (bgRunning) loop(t + loopLen); }, (loopLen - 0.5) * 1000);
+    var loopLen = bar * 4;
+    bgLoopTimer = setTimeout(function() { if (bgRunning) loop(t + loopLen); }, (loopLen - 0.4) * 1000);
   }
   loop(t0);
 }
@@ -967,27 +990,45 @@ function playBoxingBell() {
   var mg = ctx.createGain();
   mg.connect(ctx.destination);
   var t = ctx.currentTime;
-  // 3 deep resonant bell hits like a boxing match bell
-  [0, 0.7, 1.4].forEach(function(offset) {
-    var o = ctx.createOscillator();
-    var g = ctx.createGain();
-    o.type = 'sine';
-    o.frequency.setValueAtTime(440, t + offset);
-    o.frequency.exponentialRampToValueAtTime(330, t + offset + 1.2);
-    g.gain.setValueAtTime(0.55, t + offset + 0.005);
-    g.gain.exponentialRampToValueAtTime(0.001, t + offset + 1.3);
-    o.connect(g); g.connect(mg);
-    o.start(t + offset); o.stop(t + offset + 1.35);
-    // Overtone for metallic ring
-    var o2 = ctx.createOscillator();
-    var g2 = ctx.createGain();
-    o2.type = 'sine';
-    o2.frequency.setValueAtTime(880, t + offset);
-    o2.frequency.exponentialRampToValueAtTime(660, t + offset + 0.8);
-    g2.gain.setValueAtTime(0.25, t + offset + 0.005);
-    g2.gain.exponentialRampToValueAtTime(0.001, t + offset + 0.9);
-    o2.connect(g2); g2.connect(mg);
-    o2.start(t + offset); o2.stop(t + offset + 1.0);
+  // 3 authentic boxing bell hits with complex overtone stack
+  [0, 0.85, 1.7].forEach(function(offset) {
+    var bt = t + offset;
+    // Fundamental — steel bell resonance
+    [[659, 1.8, 0.50],   // E5
+     [988, 1.2, 0.28],   // B5 overtone
+     [1319, 0.8, 0.14],  // E6 2nd overtone
+     [1760, 0.5, 0.07],  // A6 brightness
+     [330, 2.2, 0.18],   // E4 body/warmth
+    ].forEach(function(spec) {
+      var freq = spec[0], dur = spec[1], vol = spec[2];
+      var o = ctx.createOscillator();
+      var g = ctx.createGain();
+      o.type = 'sine';
+      o.frequency.setValueAtTime(freq, bt);
+      // Slight frequency drop for metallic feel
+      o.frequency.exponentialRampToValueAtTime(freq * 0.97, bt + dur);
+      g.gain.setValueAtTime(0, bt);
+      g.gain.linearRampToValueAtTime(vol, bt + 0.004); // sharp attack
+      g.gain.exponentialRampToValueAtTime(0.0001, bt + dur);
+      o.connect(g); g.connect(mg);
+      o.start(bt); o.stop(bt + dur + 0.05);
+    });
+    // Clang transient (very short noise burst at impact)
+    var bufSize = ctx.sampleRate * 0.04;
+    var buf = ctx.createBuffer(1, bufSize, ctx.sampleRate);
+    var data = buf.getChannelData(0);
+    for (var i = 0; i < bufSize; i++) data[i] = (Math.random() * 2 - 1) * (1 - i/bufSize);
+    var noise = ctx.createBufferSource();
+    var ng = ctx.createGain();
+    var bpf = ctx.createBiquadFilter();
+    bpf.type = 'bandpass';
+    bpf.frequency.value = 2200;
+    bpf.Q.value = 0.8;
+    noise.buffer = buf;
+    ng.gain.setValueAtTime(0.18, bt);
+    ng.gain.exponentialRampToValueAtTime(0.0001, bt + 0.04);
+    noise.connect(bpf); bpf.connect(ng); ng.connect(mg);
+    noise.start(bt); noise.stop(bt + 0.05);
   });
 }
 
@@ -1095,30 +1136,30 @@ function continueFromAbout() {
    which songs appear. When pool is small all genres play.
 ══════════════════════════════════════════ */
 var ALL_GENRES = [
-  {id:'70s_soul',    label:"70's Soul",         decade:'70s', emoji:'🎷'},
-  {id:'70s_rock',    label:"70's Rock",          decade:'70s', emoji:'🎸'},
-  {id:'70s_disco',   label:"70's Disco",         decade:'70s', emoji:'🕺'},
-  {id:'80s_pop',     label:"80's Pop",           decade:'80s', emoji:'🎤'},
-  {id:'80s_rock',    label:"80's Rock",          decade:'80s', emoji:'🤘'},
-  {id:'80s_rb',      label:"80's R&B",           decade:'80s', emoji:'🎵'},
+  {id:'70s_soul',    label:"70s Soul",         decade:'70s', emoji:'🎷'},
+  {id:'70s_rock',    label:"70s Rock",          decade:'70s', emoji:'🎸'},
+  {id:'70s_disco',   label:"70s Disco",         decade:'70s', emoji:'🕺'},
+  {id:'80s_pop',     label:"80s Pop",           decade:'80s', emoji:'🎤'},
+  {id:'80s_rock',    label:"80s Rock",          decade:'80s', emoji:'🤘'},
+  {id:'80s_rb',      label:"80s RnB",           decade:'80s', emoji:'🎵'},
   {id:'classic_rock',label:"Classic Rock",       decade:'all', emoji:'🎸'},
-  {id:'90s_grunge',  label:"90's Grunge",        decade:'90s', emoji:'👕'},
-  {id:'90s_hip_hop', label:"90's Hip Hop",       decade:'90s', emoji:'🎤'},
-  {id:'90s_gangsta', label:"90's Gangsta Rap",   decade:'90s', emoji:'🎙️'},
-  {id:'90s_rb',      label:"90's R&B",           decade:'90s', emoji:'💃'},
-  {id:'90s_pop',     label:"90's Pop",           decade:'90s', emoji:'🌟'},
-  {id:'90s_britpop', label:"90's Britpop",       decade:'90s', emoji:'🇬🇧'},
-  {id:'00s_rb',      label:"2000's R&B",         decade:'00s', emoji:'🎶'},
-  {id:'00s_hip_hop', label:"2000's Hip Hop",     decade:'00s', emoji:'🎤'},
-  {id:'00s_rock',    label:"2000's Rock",        decade:'00s', emoji:'🎸'},
-  {id:'00s_emo',     label:"2000's Emo",         decade:'00s', emoji:'🖤'},
-  {id:'00s_pop',     label:"2000's Pop",         decade:'00s', emoji:'⭐'},
-  {id:'10s_pop',     label:"2010's Pop",         decade:'10s', emoji:'🎵'},
-  {id:'10s_hip_hop', label:"2010's Hip Hop",     decade:'10s', emoji:'🎤'},
-  {id:'10s_rb',      label:"2010's R&B",         decade:'10s', emoji:'🎶'},
-  {id:'10s_indie',   label:"2010's Indie",       decade:'10s', emoji:'🎸'},
-  {id:'20s_pop',     label:"2020's Pop",         decade:'20s', emoji:'🌟'},
-  {id:'20s_hip_hop', label:"2020's Hip Hop",     decade:'20s', emoji:'🎤'},
+  {id:'90s_grunge',  label:"90s Grunge",        decade:'90s', emoji:'👕'},
+  {id:'90s_hip_hop', label:"90s Hip Hop",       decade:'90s', emoji:'🎤'},
+  {id:'90s_gangsta', label:"90s Gangsta Rap",   decade:'90s', emoji:'🎙️'},
+  {id:'90s_rb',      label:"90s RnB",           decade:'90s', emoji:'💃'},
+  {id:'90s_pop',     label:"90s Pop",           decade:'90s', emoji:'🌟'},
+  {id:'90s_britpop', label:"90s Britpop",       decade:'90s', emoji:'🇬🇧'},
+  {id:'00s_rb',      label:"2000s RnB",         decade:'00s', emoji:'🎶'},
+  {id:'00s_hip_hop', label:"2000s Hip Hop",     decade:'00s', emoji:'🎤'},
+  {id:'00s_rock',    label:"2000s Rock",        decade:'00s', emoji:'🎸'},
+  {id:'00s_emo',     label:"2000s Emo",         decade:'00s', emoji:'🖤'},
+  {id:'00s_pop',     label:"2000s Pop",         decade:'00s', emoji:'⭐'},
+  {id:'10s_pop',     label:"2010s Pop",         decade:'10s', emoji:'🎵'},
+  {id:'10s_hip_hop', label:"2010s Hip Hop",     decade:'10s', emoji:'🎤'},
+  {id:'10s_rb',      label:"2010s RnB",         decade:'10s', emoji:'🎶'},
+  {id:'10s_indie',   label:"2010s Indie",       decade:'10s', emoji:'🎸'},
+  {id:'20s_pop',     label:"2020s Pop",         decade:'20s', emoji:'🌟'},
+  {id:'20s_hip_hop', label:"2020s Hip Hop",     decade:'20s', emoji:'🎤'},
 ];
 
 var selectedGenres = {};
@@ -1176,7 +1217,13 @@ function continueFromGenres() {
   goAbout(genreScreenDest);
 }
 
-/* ══ SONG POOLS ══ */
+/* ══ SONG POOLS ══
+   REMINDER: When more music clips are added:
+   1. Change game flow: R1=10 songs, R2=15q, R3=15q, R4 Last Call=10 songs (2x scoring)
+   2. In R2: play the artist's song while their photo is shown
+   3. In R3: play the answer song after it is revealed
+   4. Enable genre selection screen (showGenreScreen is already built)
+*/
 var R1_POOL = [
   {decade:'70s', hint:'70s Soul', song:'September - Earth Wind and Fire',
    sc:'https://soundcloud.com/earthwindandfire/september',
@@ -1392,13 +1439,11 @@ var recentlyUsed = { r2: [], r3: [] };
 function pickWithAntiRepeat(arr, n, poolKey) {
   if (!poolKey) return pick(arr, n);
   var recent = recentlyUsed[poolKey] || [];
-  // Prefer items not recently used
   var fresh = arr.filter(function(_, i) { return recent.indexOf(i) === -1; });
   var stale = arr.filter(function(_, i) { return recent.indexOf(i) !== -1; });
-  // Use fresh first, fill with stale if needed
   var pool = shuffle(fresh).concat(shuffle(stale));
-  var chosen = pool.slice(0, n);
-  // Update recently used — keep last 2/3 of pool size
+  // Guarantee no duplicates — slice gives unique items since pool has no dups
+  var chosen = pool.slice(0, Math.min(n, pool.length));
   var chosenIndices = chosen.map(function(item) { return arr.indexOf(item); });
   var maxRecent = Math.floor(arr.length * 0.66);
   recentlyUsed[poolKey] = (recent.concat(chosenIndices)).slice(-maxRecent);
@@ -1521,7 +1566,7 @@ function renderLobby() {
   var list = $('player-list'); list.innerHTML = '';
   Object.values(hPlayers).forEach(function(p) {
     var c = document.createElement('div'); c.className = 'player-chip';
-    c.innerHTML = '<div class="dot" style="background:' + p.color + '"></div><span class="chip-name">' + p.name + '</span><span class="chip-badge">Ready</span>';
+    c.innerHTML = '<span class="avatar-sm">' + (p.avatar||'🎵') + '</span><span class="chip-name">' + p.name + '</span><span class="chip-badge">Ready</span>';
     list.appendChild(c);
   });
 }
@@ -1541,7 +1586,7 @@ function _hostStartNow() {
       var pool = loaded.length >= 15 ? loaded : R2_POOL;
       return pickWithAntiRepeat(pool, Math.min(20, pool.length), 'r2');
     })() },
-    { type: 'r3', questions: pickWithAntiRepeat(R3_POOL, Math.min(25, R3_POOL.length), 'r3') },
+    { type: 'r3', questions: pickWithAntiRepeat(R3_POOL, Math.min(20, R3_POOL.length), 'r3') },
   ];
   hRound = 0; hCurrent = 0;
   Object.values(hPlayers).forEach(function(p) { p.score = 0; p.streak = 0; p.maxStreak = 0; });
@@ -1758,7 +1803,7 @@ function renderScoreCards() {
     var badge = pos === 1 ? '<span class="place-badge pb-1">1st +5</span>' : pos === 2 ? '<span class="place-badge pb-2">2nd +3</span>' : pos === 3 ? '<span class="place-badge pb-3">3rd +2</span>' : p.buzzed && p.earnedThisQ ? '<span style="font-size:11px;color:var(--green);margin-left:6px;">+1</span>' : '';
     var status = p.idk ? 'I don\'t know' : p.buzzed ? (p.choice === (q && q.correct) ? 'correct!' : 'wrong') : 'waiting...';
     var c = document.createElement('div'); c.className = 'score-card' + pbClass;
-    c.innerHTML = '<div class="sc-name-row"><div class="dot" style="background:' + p.color + '"></div><div class="sc-name">' + p.name + badge + '</div></div><div class="sc-pts">' + p.score + '</div><div class="sc-st">' + status + '</div>';
+    c.innerHTML = '<div class="sc-name-row"><span class="avatar-sm" style="margin-right:4px;">' + (p.avatar||'🎵') + '</span><div class="sc-name">' + p.name + badge + '</div></div><div class="sc-pts">' + p.score + '</div><div class="sc-st">' + status + '</div>';
     row.appendChild(c);
   });
 }
@@ -1780,7 +1825,7 @@ function showBetween() {
   var ranks = ['🥇', '🥈', '🥉'];
   Object.values(hPlayers).sort(function(a, b) { return b.score - a.score; }).forEach(function(p, i) {
     var c = document.createElement('div'); c.className = 'bs-card';
-    c.innerHTML = '<div class="bs-rank">' + (ranks[i] || (i + 1) + '.') + '</div><div class="dot" style="background:' + p.color + ';margin:0 auto 6px;width:12px;height:12px;border-radius:50%;"></div><div class="bs-name">' + p.name + '</div><div class="bs-pts">' + p.score + '</div>';
+    c.innerHTML = '<div class="bs-rank">' + (ranks[i] || (i + 1) + '.') + '</div><div class="avatar-lg" style="margin-bottom:4px;">' + (p.avatar||'🎵') + '</div><div class="bs-name">' + p.name + '</div><div class="bs-pts">' + p.score + '</div>';
     bs.appendChild(c);
   });
   pub('between-rounds', { round: hRound, scores: scoreP() });
@@ -1825,7 +1870,7 @@ function hostEnd() {
   sorted.forEach(function(p, i) {
     var row = document.createElement('div');
     row.className = 'result-row ' + (rowClasses[i] || '');
-    row.innerHTML = '<div class="result-rank" style="color:' + (rankColors[i] || 'var(--muted)') + '">' + (trophies[i] || (i + 1)) + '</div><div class="result-info"><div class="result-player">' + p.name + '</div><div class="result-title">' + (titles[i] || 'Back to Vinyl') + '</div></div><div class="result-pts">' + p.score + '</div>';
+    row.innerHTML = '<div class="result-rank" style="color:' + (rankColors[i] || 'var(--muted)') + '">' + (trophies[i] || (i + 1)) + '</div><div style="font-size:32px;margin:0 6px;">' + (p.avatar||'🎵') + '</div><div class="result-info"><div class="result-player">' + p.name + '</div><div class="result-title">' + (titles[i] || 'Back to Vinyl') + '</div></div><div class="result-pts">' + p.score + '</div>';
     grid.appendChild(row);
   });
 }
@@ -1846,7 +1891,7 @@ function showScoringAnnouncement() {
     var ptVal = pts[i] || 1;
     var colors = ['var(--gold)', '#ddd', '#cd7f32'];
     pill.style.cssText = 'background:' + (colors[i]||'var(--green)') + ';color:#111;font-family:Bebas Neue,sans-serif;font-size:28px;letter-spacing:2px;padding:12px 32px;border-radius:99px;opacity:0;transform:scale(0.5);transition:opacity 0.3s,transform 0.3s;white-space:nowrap;';
-    pill.textContent = ordinals[i] + '! ' + p.name + ' +' + ptVal + ' pts';
+    pill.textContent = (p.avatar||'') + ' ' + ordinals[i] + '! ' + p.name + ' +' + ptVal + ' pts';
     container.appendChild(pill);
     setTimeout(function() {
       pill.style.opacity = '1';
@@ -1867,9 +1912,8 @@ var hRecallCountdown = 40;
 var hRecallCountdownID = null;
 
 function handleRecallSubmit(playerId, songs) {
-  if (hRecallSubmitted[playerId]) return; // don't process twice
+  if (hRecallSubmitted[playerId]) return;
   hRecallSubmitted[playerId] = true;
-  // Add songs to queue (avoid duplicates, maintain order)
   songs.forEach(function(s) {
     if (s.sc && s.song) {
       var already = hRecallQueue.some(function(q) { return q.sc === s.sc; });
@@ -1877,7 +1921,8 @@ function handleRecallSubmit(playerId, songs) {
     }
   });
   updateRecallDisplay();
-  // Check if ALL players have now submitted
+  // Ack back to all players with current status
+  pub('recall-ack', { submitted: Object.keys(hRecallSubmitted).length, total: Object.keys(hPlayers).length });
   var totalPlayers = Object.keys(hPlayers).length;
   var submittedCount = Object.keys(hRecallSubmitted).length;
   if (submittedCount >= totalPlayers) {
@@ -1910,10 +1955,15 @@ function startRecallPlayback() {
   var el = $('recall-countdown');
   if (el) el.textContent = '';
   if (!hRecallQueue.length) {
+    var nowEl = $('recall-now-playing');
+    if (nowEl) nowEl.textContent = 'No songs were queued.';
     pub('recall-done', {});
     return;
   }
-  playNextRecall();
+  var nowEl = $('recall-now-playing');
+  if (nowEl) nowEl.textContent = 'Starting playback...';
+  // Small delay to let iframe reset
+  setTimeout(playNextRecall, 500);
 }
 
 function addToRecallQueue(sc, song) {
@@ -1937,21 +1987,23 @@ function playNextRecall() {
     hRecallPlaying = false;
     var nowEl = $('recall-now-playing');
     if (nowEl) nowEl.textContent = 'All done! 🎉';
-    // Show play again after queue finished
-    setTimeout(function() {
-      pub('recall-done', {});
-    }, 2000);
+    setTimeout(function() { pub('recall-done', {}); }, 2000);
     return;
   }
   hRecallPlaying = true;
   var next = hRecallQueue.shift();
   var nowEl = $('recall-now-playing');
-  if (nowEl) nowEl.textContent = 'Now playing: ' + next.song;
-  // Use the dedicated recall player iframe (visible in #hend screen)
-  var recallFrame = $('recall-sc-iframe');
-  if (recallFrame) recallFrame.src = buildSCEmbed(next.sc);
+  if (nowEl) nowEl.textContent = '▶ Now playing: ' + next.song;
   updateRecallDisplay();
-  // After 33 seconds move to next
+  // Use iframe — set src to fresh embed so it autoplays
+  var frame = $('recall-sc-iframe');
+  if (frame) {
+    frame.src = ''; // reset first
+    setTimeout(function() {
+      frame.src = buildSCEmbed(next.sc);
+    }, 300);
+  }
+  // Advance after 33s
   setTimeout(function() {
     if (hRecallPlaying) playNextRecall();
   }, 33000);
@@ -1965,11 +2017,55 @@ var pName = '', pColor = COLORS[0], pScore = 0;
 var pRound = 0, pRType = 'r1', pQs = [], pCur = 0, pBuzzed = false, pChoice = -1;
 var pCurrentSC = '';
 
+var pAvatar = '';
+var AVATARS = ['🐻', '🦄', '🐱', '🐶', '🦊', '🐼', '🐯', '🐸', '🦁', '🐨', '🐺', '🦋', '🐧', '🦜', '🐙', '🦖'];
+
 function initPlayer() {
+  // Show avatar picker first
+  renderAvatarPicker();
+  // Pre-fill code if in URL
   var jp = new URLSearchParams(location.search).get('join');
-  if (jp) $('code-inp').value = jp;
-  $('code-inp').addEventListener('keydown', function(e) { if (e.key === 'Enter') $('pname').focus(); });
-  $('pname').addEventListener('keydown', function(e) { if (e.key === 'Enter') playerJoin(); });
+  if (jp) $('code-inp') && ($('code-inp').value = jp);
+  $('code-inp') && $('code-inp').addEventListener('keydown', function(e) { if (e.key === 'Enter') $('pname') && $('pname').focus(); });
+  $('pname') && $('pname').addEventListener('keydown', function(e) { if (e.key === 'Enter') playerJoin(); });
+}
+
+function renderAvatarPicker() {
+  var grid = $('avatar-grid');
+  if (!grid) return;
+  grid.innerHTML = '';
+  AVATARS.forEach(function(av) {
+    var btn = document.createElement('button');
+    btn.className = 'avatar-btn' + (pAvatar === av ? ' selected' : '');
+    btn.textContent = av;
+    btn.onclick = function() {
+      pAvatar = av;
+      renderAvatarPicker();
+      checkAvatarReady();
+    };
+    grid.appendChild(btn);
+  });
+}
+
+document.addEventListener('input', function(e) { if (e.target && e.target.id === 'pname-avatar') checkAvatarReady(); });
+function checkAvatarReady() {
+  var nameEl = $('pname-avatar');
+  var btn = $('avatar-next-btn');
+  var ready = pAvatar && nameEl && nameEl.value.trim().length > 0;
+  if (btn) { btn.disabled = !ready; btn.style.opacity = ready ? '1' : '0.4'; }
+}
+
+function confirmAvatar() {
+  var nameEl = $('pname-avatar');
+  if (!pAvatar || !nameEl || !nameEl.value.trim()) return;
+  pName = nameEl.value.trim();
+  // Copy to main join form
+  var codeInp = $('code-inp');
+  // Move to join screen
+  hide('avatar-picker'); show('pjoin');
+  // Pre-fill name
+  var pnameEl = $('pname');
+  if (pnameEl) pnameEl.value = pName;
 }
 
 function playerJoin() {
@@ -1982,7 +2078,7 @@ function playerJoin() {
   connectAbly(code, function() {
     sub('joined', function(d) {
       if (d.id !== pID) return;
-      pColor = d.color; $('p-av').style.background = pColor; $('p-av').textContent = pName.slice(0, 2).toUpperCase();
+      pColor = d.color; $('p-av').style.background = 'transparent'; $('p-av').textContent = pAvatar || pName.slice(0,2).toUpperCase(); $('p-av').style.fontSize = pAvatar ? '28px' : '13px';
     });
     sub('round-start', function(d) {
       pRound = d.round; pRType = d.type; pQs = d.qs; pCur = 0;
@@ -2036,9 +2132,15 @@ function playerJoin() {
       }
     });
     sub('recall-done', function() {
-      // Queue finished — show play again
       hide('precall');
       show('pend');
+    });
+    sub('recall-ack', function(d) {
+      var status = $('precall-status');
+      if (status && pRecallSubmitted) {
+        status.textContent = d.submitted + ' of ' + d.total + ' players submitted. Starting soon...';
+        status.style.color = 'var(--muted)';
+      }
     });
     sub('singalong-request', function(d) {
       // Player requested sing-along — play SC embed on host
@@ -2052,8 +2154,8 @@ function playerJoin() {
       handleRecallSubmit(d.id, d.songs || []);
     });
     hide('pjoin'); show('pwaiting');
-    $('wait-name').textContent = pName.toUpperCase();
-    pub('join', { id: pID, name: pName });
+    $('wait-name').textContent = (pAvatar ? pAvatar + ' ' : '') + pName.toUpperCase();
+    pub('join', { id: pID, name: pName, avatar: pAvatar || '🎵' });
   });
 }
 
@@ -2201,7 +2303,6 @@ function playerEnd(scores) {
   hide('pgame'); show('pend');
   var s = (scores && scores[pID]) ? scores[pID].score : pScore;
   $('p-final').textContent = s;
-  // Determine rank by comparing scores
   var allScores = Object.values(scores || {}).map(function(v) { return v.score; }).sort(function(a, b) { return b - a; });
   var myRank = allScores.indexOf(s) + 1;
   var trophy, title, color;
@@ -2209,7 +2310,8 @@ function playerEnd(scores) {
   else if (myRank === 2) { trophy = '🥈'; title = 'ROCK LEGEND'; color = '#ddd'; }
   else if (myRank === 3) { trophy = '🥉'; title = 'ROCK BEAST'; color = '#cd7f32'; }
   else { trophy = '🎵'; title = 'BACK TO VINYL'; color = 'var(--muted)'; }
-  $('p-trophy').textContent = trophy;
+  // Show player's own avatar above trophy
+  $('p-trophy').textContent = (pAvatar || '') + ' ' + trophy;
   $('p-final-title').textContent = title;
   $('p-final-title').style.color = color;
 }
