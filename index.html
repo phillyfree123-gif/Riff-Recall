@@ -432,11 +432,12 @@ input{font-family:'DM Sans',sans-serif;}
     <div class="winner-pts" id="winner-pts">0</div>
     <div class="results-grid" id="results-grid"></div>
     <div id="recall-section" style="width:100%;max-width:500px;display:none;">
-      <div style="font-family:Bebas Neue,sans-serif;font-size:22px;color:var(--gold);margin-bottom:4px;letter-spacing:2px;">🎤 READY RECALL QUEUE</div>
+      <div style="font-family:'Bebas Neue',sans-serif;font-size:22px;color:var(--gold);margin-bottom:4px;letter-spacing:2px;">🎤 READY RECALL QUEUE</div>
       <div id="recall-countdown" style="font-size:14px;color:var(--gold);margin-bottom:6px;"></div>
       <div id="recall-queue-display" style="font-size:14px;color:var(--muted);margin-bottom:8px;">Waiting for players to choose songs...</div>
-      <div id="recall-now-playing" style="font-size:16px;color:var(--green);font-weight:600;min-height:22px;margin-bottom:4px;"></div>
-      <!-- Recall SC player lives here so it works even when hgame is hidden -->
+      <div id="recall-now-playing" style="font-size:16px;color:var(--green);font-weight:600;min-height:22px;margin-bottom:8px;"></div>
+      <!-- Host must click Play to satisfy browser autoplay policy -->
+      <button id="recall-play-btn" onclick="hostStartRecallPlay()" style="display:none;background:var(--gold);color:#111;border:none;border-radius:10px;padding:14px 32px;font-size:17px;font-weight:700;width:100%;margin-bottom:8px;cursor:pointer;">▶ Play Recall Queue</button>
       <div style="width:100%;background:#000;border-radius:8px;overflow:hidden;">
         <iframe id="recall-sc-iframe" allow="autoplay" src="" height="80" scrolling="no" frameborder="no" style="width:100%;border:none;display:block;"></iframe>
       </div>
@@ -523,7 +524,7 @@ input{font-family:'DM Sans',sans-serif;}
     <div style="font-size:14px;color:var(--muted);text-align:center;margin-bottom:.75rem;">Tap songs to add to queue. Tap again to remove.</div>
     <div style="text-align:center;margin-bottom:.75rem;">
       <span style="font-size:13px;color:var(--muted);">Time to choose: </span>
-      <span style="font-family:'Bebas Neue',sans-serif;font-size:22px;color:var(--gold);" id="p-recall-timer">20</span>
+      <span style="font-family:'Bebas Neue',sans-serif;font-size:22px;color:var(--gold);" id="p-recall-timer">40</span>
       <span style="font-size:13px;color:var(--muted);">s</span>
     </div>
     <div id="precall-list" style="width:100%;display:flex;flex-direction:column;gap:10px;margin-bottom:1rem;"></div>
@@ -685,7 +686,7 @@ function scheduleLobby(ctx, mg) {
     progression.forEach(function(ch, ci) {
       var ct = t + ci * bar * 2;
       ch.chord.forEach(function(f) { pad(ctx, mg, f, ct, bar*1.9, 0.055); });
-      pad(ctx, mg, f*2, ct, bar*1.9, 0.03);
+      pad(ctx, mg, ch.root*2, ct, bar*1.9, 0.03);
     });
 
     // Walking bass
@@ -987,48 +988,87 @@ function playPing(place) {
 function playBoxingBell() {
   var ctx = getCtx();
   if (ctx.state === 'suspended') ctx.resume();
+  // Main output with slight compression for punch
+  var comp = ctx.createDynamicsCompressor();
+  comp.threshold.value = -6;
+  comp.knee.value = 3;
+  comp.ratio.value = 4;
+  comp.attack.value = 0.001;
+  comp.release.value = 0.3;
+  comp.connect(ctx.destination);
   var mg = ctx.createGain();
-  mg.connect(ctx.destination);
+  mg.gain.value = 1.0;
+  mg.connect(comp);
   var t = ctx.currentTime;
-  // 3 authentic boxing bell hits with complex overtone stack
-  [0, 0.85, 1.7].forEach(function(offset) {
+
+  // 3 bell hits at boxing match timing
+  [0, 0.9, 1.8].forEach(function(offset) {
     var bt = t + offset;
-    // Fundamental — steel bell resonance
-    [[659, 1.8, 0.50],   // E5
-     [988, 1.2, 0.28],   // B5 overtone
-     [1319, 0.8, 0.14],  // E6 2nd overtone
-     [1760, 0.5, 0.07],  // A6 brightness
-     [330, 2.2, 0.18],   // E4 body/warmth
-    ].forEach(function(spec) {
-      var freq = spec[0], dur = spec[1], vol = spec[2];
+
+    // Layer 1: Primary bell tone — inharmonic partials like real metal
+    // Real bells have non-integer ratios between partials
+    [
+      {f:880,  v:0.55, d:2.5, drift:0.985},   // fundamental A5
+      {f:1396, v:0.30, d:1.8, drift:0.982},   // 1.587x — minor third inharmonic
+      {f:2093, v:0.18, d:1.2, drift:0.978},   // 2.378x — tritone partial
+      {f:2794, v:0.10, d:0.9, drift:0.975},   // 3.175x — partial 4
+      {f:440,  v:0.25, d:3.0, drift:0.990},   // sub-octave warmth
+      {f:3520, v:0.06, d:0.6, drift:0.970},   // high shimmer
+    ].forEach(function(p) {
       var o = ctx.createOscillator();
       var g = ctx.createGain();
       o.type = 'sine';
-      o.frequency.setValueAtTime(freq, bt);
-      // Slight frequency drop for metallic feel
-      o.frequency.exponentialRampToValueAtTime(freq * 0.97, bt + dur);
+      o.frequency.setValueAtTime(p.f, bt);
+      // Frequency droops slightly as metal loses energy — key to realism
+      o.frequency.exponentialRampToValueAtTime(p.f * p.drift, bt + p.d);
       g.gain.setValueAtTime(0, bt);
-      g.gain.linearRampToValueAtTime(vol, bt + 0.004); // sharp attack
-      g.gain.exponentialRampToValueAtTime(0.0001, bt + dur);
+      g.gain.linearRampToValueAtTime(p.v, bt + 0.003);
+      // Fast initial decay then slow ring-out
+      g.gain.setTargetAtTime(p.v * 0.3, bt + 0.05, 0.08);
+      g.gain.exponentialRampToValueAtTime(0.0001, bt + p.d);
       o.connect(g); g.connect(mg);
-      o.start(bt); o.stop(bt + dur + 0.05);
+      o.start(bt); o.stop(bt + p.d + 0.05);
     });
-    // Clang transient (very short noise burst at impact)
-    var bufSize = ctx.sampleRate * 0.04;
-    var buf = ctx.createBuffer(1, bufSize, ctx.sampleRate);
-    var data = buf.getChannelData(0);
-    for (var i = 0; i < bufSize; i++) data[i] = (Math.random() * 2 - 1) * (1 - i/bufSize);
-    var noise = ctx.createBufferSource();
-    var ng = ctx.createGain();
-    var bpf = ctx.createBiquadFilter();
-    bpf.type = 'bandpass';
-    bpf.frequency.value = 2200;
-    bpf.Q.value = 0.8;
-    noise.buffer = buf;
-    ng.gain.setValueAtTime(0.18, bt);
-    ng.gain.exponentialRampToValueAtTime(0.0001, bt + 0.04);
-    noise.connect(bpf); bpf.connect(ng); ng.connect(mg);
-    noise.start(bt); noise.stop(bt + 0.05);
+
+    // Layer 2: Metal strike transient — the CLANG on impact
+    (function() {
+      var dur = 0.06;
+      var bufSize = Math.floor(ctx.sampleRate * dur);
+      var buf = ctx.createBuffer(1, bufSize, ctx.sampleRate);
+      var data = buf.getChannelData(0);
+      // Shaped noise — heavier at start
+      for (var i = 0; i < bufSize; i++) {
+        var env = Math.pow(1 - i/bufSize, 2.5);
+        data[i] = (Math.random() * 2 - 1) * env;
+      }
+      var src = ctx.createBufferSource();
+      src.buffer = buf;
+      // Band-pass centered at steel resonance freq
+      var bp1 = ctx.createBiquadFilter();
+      bp1.type = 'bandpass'; bp1.frequency.value = 3500; bp1.Q.value = 1.2;
+      var bp2 = ctx.createBiquadFilter();
+      bp2.type = 'bandpass'; bp2.frequency.value = 1800; bp2.Q.value = 0.8;
+      var ng = ctx.createGain();
+      ng.gain.setValueAtTime(0.35, bt);
+      ng.gain.exponentialRampToValueAtTime(0.0001, bt + dur);
+      src.connect(bp1); bp1.connect(ng);
+      src.connect(bp2); bp2.connect(ng);
+      ng.connect(mg);
+      src.start(bt); src.stop(bt + dur);
+    })();
+
+    // Layer 3: Low body thud — the hammer hitting the bell post
+    (function() {
+      var o = ctx.createOscillator();
+      var g = ctx.createGain();
+      o.type = 'triangle';
+      o.frequency.setValueAtTime(120, bt);
+      o.frequency.exponentialRampToValueAtTime(60, bt + 0.15);
+      g.gain.setValueAtTime(0.4, bt);
+      g.gain.exponentialRampToValueAtTime(0.0001, bt + 0.15);
+      o.connect(g); g.connect(mg);
+      o.start(bt); o.stop(bt + 0.2);
+    })();
   });
 }
 
@@ -1376,9 +1416,9 @@ var R3_POOL = [
   {clue:'A narrator describes a magical evening watching fireflies in a field as a child. The song is about holding onto innocence before the world takes it.',
    song:'Fireflies', answers:['Owl City','Death Cab For Cutie','Of Monsters And Men','Vampire Weekend'], correct:0},
   {clue:'Someone gives very specific directions to their house in the lyrics. The chorus is about waiting by the phone for a text back. The production is lo-fi.',
-   song:'Slide', answers:['Frank Ocean','Daniel Caesar','H.E.R.','dvsn'], correct:0},
+   song:'Come Over', answers:['Frank Ocean','Daniel Caesar','H.E.R.','dvsn'], correct:3},
   {clue:'A man describes watching the woman he loves marry someone else. He stands at the back of the church and says nothing. The melody is devastating.',
-   song:'She Used To Be Mine', answers:['Gavin DeGraw','Josh Groban','James Blunt','Train'], correct:2},
+   song:'Goodbye My Lover', answers:['Gavin DeGraw','Josh Groban','James Blunt','Train'], correct:2},
   {clue:'A classic Fugees member R&B song about being unable to stop thinking about an ex. The title refers to an element that connects two things. The title refers to an element that connects two things.',
    song:'Ex Factor', answers:['Alicia Keys','Lauryn Hill','Erykah Badu','Jill Scott'], correct:1},
   {clue:'The singer describes being raised in a town with nothing to do and music being the only escape. Every weekend was the same party until someone left.',
@@ -1398,7 +1438,7 @@ var R3_POOL = [
   {clue:'The narrator is writing a letter to their younger self with advice about heartbreak, friendships, and not worrying about what others think.',
    song:'Dear Younger Me', answers:['Taylor Swift','Carrie Underwood','MercyMe','Lecrae'], correct:2},
   {clue:'A couple argues every night but cannot stay apart. The narrator admits their relationship is toxic but neither person can leave. The production is dark pop.',
-   song:'Toxic', answers:['Rihanna','Kesha','Britney Spears','Ava Max'], correct:2},
+   song:'Love The Way You Lie', answers:['Rihanna ft Eminem','Kesha','Britney Spears ft Iggy','Ava Max'], correct:0},
   {clue:'Someone lists their morning routine in extreme detail — coffee, news, commute — to show how empty their life has become since a breakup.',
    song:'Somebody That I Used To Know', answers:['Passenger','Gotye ft Kimbra','The Lumineers','Of Monsters And Men'], correct:1},
   {clue:'A song from the perspective of a parent watching their child grow up too fast. Each verse describes a different birthday. The final verse is devastating.',
@@ -1502,9 +1542,12 @@ function initHost() {
     $('conn-status').textContent = 'Ready! Waiting for players...';
     $('conn-status').style.color = 'var(--green)';
     sub('join', function(d) {
-      if (hPlayers[d.id]) { pub('joined', { id: d.id, color: hPlayers[d.id].color }); return; }
+      if (hPlayers[d.id]) {
+        if (d.avatar) hPlayers[d.id].avatar = d.avatar; // refresh avatar on re-join
+        pub('joined', { id: d.id, color: hPlayers[d.id].color }); return;
+      }
       var idx = Object.keys(hPlayers).length;
-      hPlayers[d.id] = { name: d.name, color: COLORS[idx % COLORS.length], score: 0, streak: 0, maxStreak: 0, choice: -1, buzzed: false, idk: false };
+      hPlayers[d.id] = { name: d.name, color: COLORS[idx % COLORS.length], score: 0, streak: 0, maxStreak: 0, choice: -1, buzzed: false, idk: false, avatar: d.avatar || '🎵' };
       renderLobby();
       pub('joined', { id: d.id, color: hPlayers[d.id].color });
       var n = Object.keys(hPlayers).length;
@@ -1541,6 +1584,16 @@ function initHost() {
       // Check if everyone has answered
       var allIn = Object.values(hPlayers).every(function(p) { return p.buzzed; });
       if (allIn) { clearInterval(hTimerID); playAllInDing(); revealHost(); }
+    });
+    // HOST-SIDE: receive player song recall choices and play sing-along requests
+    sub('recall-submit', function(d) {
+      handleRecallSubmit(d.id, d.songs || []);
+    });
+    sub('singalong-request', function(d) {
+      if (d.sc) {
+        var rf = $('recall-sc-iframe');
+        if (rf) { rf.src = ''; setTimeout(function() { rf.src = buildSCEmbed(d.sc); }, 200); }
+      }
     });
   });
 }
@@ -1789,7 +1842,9 @@ function revealHost() {
 
 function scoreP() {
   var o = {};
-  Object.entries(hPlayers).forEach(function(kv) { o[kv[0]] = { score: kv[1].score, earnedThisQ: kv[1].earnedThisQ, posThisQ: kv[1].posThisQ }; });
+  Object.entries(hPlayers).forEach(function(kv) {
+    o[kv[0]] = { score: kv[1].score, earnedThisQ: kv[1].earnedThisQ, posThisQ: kv[1].posThisQ, name: kv[1].name, avatar: kv[1].avatar || '🎵' };
+  });
   return o;
 }
 
@@ -1934,7 +1989,7 @@ function handleRecallSubmit(playerId, songs) {
 function startRecallCountdown() {
   hRecallCountdown = 40;
   hRecallSubmitted = {};
-  updateHostRecallTimer(20);
+  updateHostRecallTimer(40);
   hRecallCountdownID = setInterval(function() {
     hRecallCountdown--;
     updateHostRecallTimer(hRecallCountdown);
@@ -1952,18 +2007,25 @@ function updateHostRecallTimer(secs) {
 
 function startRecallPlayback() {
   clearInterval(hRecallCountdownID);
-  var el = $('recall-countdown');
-  if (el) el.textContent = '';
+  var cdEl = $('recall-countdown');
+  if (cdEl) cdEl.textContent = '';
   if (!hRecallQueue.length) {
     var nowEl = $('recall-now-playing');
-    if (nowEl) nowEl.textContent = 'No songs were queued.';
-    pub('recall-done', {});
+    if (nowEl) nowEl.textContent = 'No songs were chosen.';
+    setTimeout(function() { pub('recall-done', {}); }, 3000);
     return;
   }
+  // Show Play button — host must click to satisfy browser autoplay policy
+  var btn = $('recall-play-btn');
+  if (btn) btn.style.display = 'block';
   var nowEl = $('recall-now-playing');
-  if (nowEl) nowEl.textContent = 'Starting playback...';
-  // Small delay to let iframe reset
-  setTimeout(playNextRecall, 500);
+  if (nowEl) nowEl.textContent = 'Click Play to start the sing-along!';
+}
+
+function hostStartRecallPlay() {
+  var btn = $('recall-play-btn');
+  if (btn) btn.style.display = 'none';
+  playNextRecall();
 }
 
 function addToRecallQueue(sc, song) {
@@ -2084,8 +2146,9 @@ function playerJoin() {
       pRound = d.round; pRType = d.type; pQs = d.qs; pCur = 0;
       hide('pwaiting'); hide('pbetween'); show('pgame');
       $('p-dname').textContent = pName;
-      $('p-av').textContent = pName.slice(0, 2).toUpperCase();
-      $('p-av').style.background = pColor;
+      var avEl = $('p-av');
+      if (pAvatar) { avEl.textContent = pAvatar; avEl.style.fontSize = '28px'; avEl.style.background = 'transparent'; }
+      else { avEl.textContent = pName.slice(0, 2).toUpperCase(); avEl.style.fontSize = '13px'; avEl.style.background = pColor; }
       $('p-rbadge').textContent = 'Round ' + (pRound + 1);
     });
     sub('question', function(d) {
@@ -2113,6 +2176,25 @@ function playerJoin() {
       hide('idk-btn');
       $('p-chint').textContent = 'Song: ' + (d.song || '');
       if (d.scores && d.scores[pID]) { pScore = d.scores[pID].score; $('p-score').textContent = pScore; }
+      // Mini leaderboard with avatars after each question
+      if (d.scores) {
+        var ex = $('p-extra'); ex.innerHTML = '';
+        var sorted = Object.values(d.scores).sort(function(a,b){return b.score-a.score;});
+        var lb = document.createElement('div');
+        lb.style.cssText = 'margin-top:10px;display:flex;flex-direction:column;gap:4px;';
+        sorted.forEach(function(p, i) {
+          var row = document.createElement('div');
+          var isMe = p.name === pName;
+          row.style.cssText = 'display:flex;align-items:center;gap:8px;padding:6px 10px;background:' + (isMe ? 'rgba(245,200,66,.12)' : 'var(--surf)') + ';border-radius:8px;border:1px solid ' + (isMe ? 'var(--gold)' : 'var(--border)') + ';';
+          var medal = i === 0 ? '🥇' : i === 1 ? '🥈' : i === 2 ? '🥉' : (i+1)+'.';
+          row.innerHTML = '<span style="font-size:16px;min-width:24px;">' + medal + '</span>' +
+            '<span style="font-size:20px;">' + (p.avatar||'🎵') + '</span>' +
+            '<span style="font-size:13px;font-weight:600;flex:1;">' + p.name + '</span>' +
+            '<span style="font-family:Bebas Neue,sans-serif;font-size:18px;color:var(--gold);">' + p.score + '</span>';
+          lb.appendChild(row);
+        });
+        ex.appendChild(lb);
+      }
       // Show sing-along button for R1
       if (pRType === 'r1' && pCurrentSC) show('singalong-btn');
     });
@@ -2141,17 +2223,6 @@ function playerJoin() {
         status.textContent = d.submitted + ' of ' + d.total + ' players submitted. Starting soon...';
         status.style.color = 'var(--muted)';
       }
-    });
-    sub('singalong-request', function(d) {
-      // Player requested sing-along — play SC embed on host
-      if (d.sc) {
-        var rf = $('recall-sc-iframe');
-        if (rf) rf.src = buildSCEmbed(d.sc);
-      }
-    });
-    sub('recall-submit', function(d) {
-      // Player submitted their song choices
-      handleRecallSubmit(d.id, d.songs || []);
     });
     hide('pjoin'); show('pwaiting');
     $('wait-name').textContent = (pAvatar ? pAvatar + ' ' : '') + pName.toUpperCase();
@@ -2234,7 +2305,7 @@ function showRecallScreen(songs) {
   pRecallSongs = songs;
   pRecallSelected = {};
   pRecallSubmitted = false;
-  hide('pend'); show('precall');
+  hide('pgame'); hide('pend'); show('precall');
   playBgMusic('singalong');
   renderRecallList();
   // Start 20-second countdown
